@@ -1,0 +1,9 @@
+# Lint rules for contracts/api.yaml. Run from the repository root:
+#   npx @redocly/cli@2 lint contracts/api.yaml
+extends:
+  - recommended
+
+rules:
+  # Examples are the only executable part of the contract: a broken example must fail the lint.
+  no-invalid-media-type-examples: error
+  no-invalid-schema-examples: error

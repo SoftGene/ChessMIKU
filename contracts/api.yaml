@@ -1,0 +1,520 @@
+openapi: 3.1.0
+
+info:
+  title: Chess Review API
+  version: 1.0.0
+  summary: Stores post-game reviews of finished chess.com games and explains the worst moves.
+  description: |
+    Contract between the Chess Review browser extension and the Chess Review backend.
+
+    The extension evaluates a finished game with Stockfish in the user's browser and sends the
+    raw engine evaluations. The backend classifies every move, stores the game and queues
+    plain-language explanations of the worst moments, which the extension then polls for.
+
+    Only finished games are accepted. The API never helps during a game in progress.
+
+    **Changes to this file require the project owner's approval.** An agent that needs a change
+    records a request in the project journal instead of editing this file.
+
+    ## Conventions
+
+    - Evaluations are integers in centipawns (1/100 of a pawn), always from the point of view
+      of the side that makes the move.
+    - Errors use RFC 9457 problem details (`application/problem+json`).
+  license:
+    name: GNU General Public License v3.0
+    url: https://www.gnu.org/licenses/gpl-3.0.html
+
+servers:
+  - url: http://localhost:8080
+    description: Local development (docker compose)
+
+tags:
+  - name: analyses
+    description: Submitting a finished game for review and reading the result.
+  - name: health
+    description: Availability of the API and its database.
+
+security:
+  - installId: []
+
+paths:
+  /api/analyses:
+    post:
+      tags: [analyses]
+      operationId: createAnalysis
+      summary: Submit a finished game with engine evaluations
+      description: |
+        Stores the game if it is new, classifies every move and queues explanations of the
+        worst moments in the requested language.
+
+        Classifications are computed by the backend and returned immediately. Explanations are
+        generated in the background: poll `GET /api/analyses/{analysisId}` until `status` is
+        `ready` or `failed`.
+
+        A repeated request for the same game and language is served from the cache: moves are
+        not classified again and the language-model quota is not spent.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAnalysisRequest'
+            example:
+              externalGameId: '123456789012'
+              language: en
+              pgn: |
+                [Event "Live Chess"]
+                [Site "Chess.com"]
+                [White "example_white"]
+                [Black "example_black"]
+                [Result "1-0"]
+
+                1. e4 e5 2. Nf3 d6 3. Bc4 Bg4 4. Nc3 g6 5. Nxe5 Bxd1 6. Bxf7+ Ke7 7. Nd5# 1-0
+              moves:
+                - { ply: 1, san: 'e4', uci: e2e4, evalBeforeCp: 30, evalAfterCp: 30, bestMoveUci: e2e4, isMate: false }
+                - { ply: 2, san: 'e5', uci: e7e5, evalBeforeCp: -30, evalAfterCp: -30, bestMoveUci: e7e5, isMate: false }
+                - { ply: 3, san: 'Nf3', uci: g1f3, evalBeforeCp: 32, evalAfterCp: 32, bestMoveUci: g1f3, isMate: false }
+                - { ply: 4, san: 'd6', uci: d7d6, evalBeforeCp: -32, evalAfterCp: -60, bestMoveUci: b8c6, isMate: false }
+                - { ply: 5, san: 'Bc4', uci: f1c4, evalBeforeCp: 60, evalAfterCp: 55, bestMoveUci: d2d4, isMate: false }
+                - { ply: 6, san: 'Bg4', uci: c8g4, evalBeforeCp: -55, evalAfterCp: -95, bestMoveUci: g8f6, isMate: false }
+                - { ply: 7, san: 'Nc3', uci: b1c3, evalBeforeCp: 95, evalAfterCp: 90, bestMoveUci: h2h3, isMate: false }
+                - { ply: 8, san: 'g6', uci: g7g6, evalBeforeCp: -90, evalAfterCp: -130, bestMoveUci: g8f6, isMate: false }
+                - { ply: 9, san: 'Nxe5', uci: f3e5, evalBeforeCp: 130, evalAfterCp: 150, bestMoveUci: f3e5, isMate: false }
+                - { ply: 10, san: 'Bxd1', uci: g4d1, evalBeforeCp: -150, evalAfterCp: -10000, bestMoveUci: d6e5, isMate: true }
+                - { ply: 11, san: 'Bxf7+', uci: c4f7, evalBeforeCp: 10000, evalAfterCp: 10000, bestMoveUci: c4f7, isMate: true }
+                - { ply: 12, san: 'Ke7', uci: e8e7, evalBeforeCp: -10000, evalAfterCp: -10000, bestMoveUci: e8e7, isMate: true }
+                - { ply: 13, san: 'Nd5#', uci: c3d5, evalBeforeCp: 10000, evalAfterCp: 10000, bestMoveUci: c3d5, isMate: true }
+      responses:
+        '200':
+          description: |
+            Served from the cache: this game has already been analysed in this language and its
+            explanations are ready. Nothing is recomputed and no quota is spent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisAccepted'
+              example:
+                analysisId: 3f2b8c1e-5d4a-4e7b-9c61-0a8d2f4b7e19
+                explanationsStatus: ready
+                classifications: &legalMateClassifications
+                  - { ply: 1, classification: best }
+                  - { ply: 2, classification: best }
+                  - { ply: 3, classification: best }
+                  - { ply: 4, classification: good }
+                  - { ply: 5, classification: good }
+                  - { ply: 6, classification: good }
+                  - { ply: 7, classification: good }
+                  - { ply: 8, classification: good }
+                  - { ply: 9, classification: best }
+                  - { ply: 10, classification: blunder }
+                  - { ply: 11, classification: best }
+                  - { ply: 12, classification: best }
+                  - { ply: 13, classification: best }
+        '202':
+          description: |
+            Moves are classified and returned; explanations are queued. Poll
+            `GET /api/analyses/{analysisId}` for them.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisAccepted'
+              example:
+                analysisId: 3f2b8c1e-5d4a-4e7b-9c61-0a8d2f4b7e19
+                explanationsStatus: pending
+                classifications: *legalMateClassifications
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/UnknownInstall'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /api/analyses/{analysisId}:
+    get:
+      tags: [analyses]
+      operationId: getAnalysis
+      summary: Read the classifications and explanations of an analysis
+      parameters:
+        - name: analysisId
+          in: path
+          required: true
+          description: Identifier returned by `POST /api/analyses`.
+          schema:
+            $ref: '#/components/schemas/AnalysisId'
+      responses:
+        '200':
+          description: Current state of the analysis.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisResult'
+              examples:
+                pending:
+                  summary: Explanations are still being generated
+                  value:
+                    status: pending
+                    classifications: *legalMateClassifications
+                    explanations: []
+                ready:
+                  summary: Explanations are ready
+                  value:
+                    status: ready
+                    classifications: *legalMateClassifications
+                    explanations:
+                      - ply: 10
+                        text: >-
+                          Taking the queen with 5...Bxd1 walks into a forced mate, and the
+                          evaluation drops from a small disadvantage to a lost position. The
+                          engine preferred 5...dxe5, which gives up a pawn but keeps Black
+                          in the game.
+                failed:
+                  summary: The language model did not answer after all retries
+                  value:
+                    status: failed
+                    classifications: *legalMateClassifications
+                    explanations: []
+        '401':
+          $ref: '#/components/responses/UnknownInstall'
+        '404':
+          $ref: '#/components/responses/AnalysisNotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /healthz:
+    get:
+      tags: [health]
+      operationId: getHealth
+      summary: Check that the API and its database are reachable
+      security: []
+      responses:
+        '200':
+          description: The API is up and the database answers.
+          content:
+            text/plain:
+              schema:
+                type: string
+                enum: [Healthy]
+              example: Healthy
+        '503':
+          description: The API is up but the database does not answer.
+          content:
+            text/plain:
+              schema:
+                type: string
+                enum: [Unhealthy]
+              example: Unhealthy
+
+components:
+  securitySchemes:
+    installId:
+      type: apiKey
+      in: header
+      name: X-Install-Id
+      description: |
+        Anonymous identifier of the extension installation, a UUID. It carries no personal
+        data. Requests with a missing or unknown identifier get `401`.
+
+  headers:
+    RetryAfter:
+      description: |
+        Seconds to wait before retrying. For the daily quota this is the time until the quota
+        resets at 00:00 UTC.
+      schema:
+        type: integer
+        minimum: 1
+      example: 3600
+
+  responses:
+    ValidationFailed:
+      description: The request body is malformed or inconsistent.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ValidationProblemDetails'
+          example:
+            type: https://tools.ietf.org/html/rfc9110#section-15.5.1
+            title: One or more validation errors occurred.
+            status: 400
+            errors:
+              moves[3].uci:
+                - Must be a move in UCI notation, for example e2e4.
+              pgn:
+                - The game is not finished.
+
+    UnknownInstall:
+      description: The `X-Install-Id` header is missing or the installation is not known.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: https://tools.ietf.org/html/rfc9110#section-15.5.2
+            title: Unknown installation
+            status: 401
+            detail: The X-Install-Id header is missing or not registered.
+
+    AnalysisNotFound:
+      description: No analysis with this identifier exists.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: https://tools.ietf.org/html/rfc9110#section-15.5.5
+            title: Analysis not found
+            status: 404
+
+    TooManyRequests:
+      description: |
+        The daily quota of this installation is used up, or requests arrive too fast.
+        `code` tells the two cases apart. Analysis with the engine in the browser keeps working.
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/TooManyRequestsProblem'
+          examples:
+            dailyQuota:
+              summary: Daily quota used up
+              value:
+                type: https://tools.ietf.org/html/rfc6585#section-4
+                title: Daily quota exceeded
+                status: 429
+                code: daily_quota_exceeded
+            rateLimited:
+              summary: Too many requests in a short time
+              value:
+                type: https://tools.ietf.org/html/rfc6585#section-4
+                title: Too many requests
+                status: 429
+                code: rate_limited
+
+  schemas:
+    AnalysisId:
+      type: string
+      format: uuid
+      description: Opaque identifier of the analysis of one game in one language.
+      examples:
+        - 3f2b8c1e-5d4a-4e7b-9c61-0a8d2f4b7e19
+
+    ExternalGameId:
+      type: string
+      pattern: '^[0-9]{1,20}$'
+      description: Number of the game on chess.com, as it appears in the game URL. Cache key.
+      examples:
+        - '123456789012'
+
+    Language:
+      type: string
+      enum: [ru, cs, en]
+      description: Language of the explanations. Part of the cache key.
+
+    Classification:
+      type: string
+      enum: [best, good, inaccuracy, mistake, blunder]
+      description: |
+        Move class, decided by the backend from the evaluation loss
+        (`evalBeforeCp - evalAfterCp`):
+
+        - `best` - the move played is the engine's best move;
+        - `good` - loss below 50;
+        - `inaccuracy` - loss from 50 to 99;
+        - `mistake` - loss from 100 to 299;
+        - `blunder` - loss of 300 or more.
+
+    AnalysisStatus:
+      type: string
+      enum: [pending, ready, failed]
+      description: |
+        State of the explanations:
+
+        - `pending` - queued or being generated;
+        - `ready` - stored and returned in `explanations`;
+        - `failed` - the language model did not answer after all retries.
+
+    Uci:
+      type: string
+      pattern: '^[a-h][1-8][a-h][1-8][qrbn]?$'
+      description: Move in UCI notation, with a promotion piece when needed.
+      examples:
+        - e2e4
+        - e7e8q
+
+    Centipawns:
+      type: integer
+      minimum: -10000
+      maximum: 10000
+      description: |
+        Evaluation in centipawns from the point of view of the side making the move.
+        A forced mate is encoded as `10000` (that side mates) or `-10000` (that side is mated).
+
+    MoveEvaluation:
+      type: object
+      description: Raw engine evaluations of one half-move of the game.
+      required: [ply, san, uci, evalBeforeCp, evalAfterCp, bestMoveUci, isMate]
+      additionalProperties: false
+      properties:
+        ply:
+          type: integer
+          minimum: 1
+          description: Half-move number, starting at 1 for White's first move.
+        san:
+          type: string
+          minLength: 2
+          maxLength: 10
+          description: Move in standard algebraic notation, as in the PGN.
+        uci:
+          $ref: '#/components/schemas/Uci'
+        evalBeforeCp:
+          $ref: '#/components/schemas/Centipawns'
+          description: |
+            Evaluation of the position before the move, assuming the engine's best move is
+            played. Point of view of the side making the move.
+        evalAfterCp:
+          $ref: '#/components/schemas/Centipawns'
+          description: |
+            Evaluation of the position after the move actually played, from the point of view
+            of the same side (the side that made the move).
+        bestMoveUci:
+          $ref: '#/components/schemas/Uci'
+          description: The engine's best move in the position before this move.
+        isMate:
+          type: boolean
+          description: |
+            True when the engine reported a forced mate for either evaluation of this move.
+            Which side mates is given by the sign of that evaluation, which is then exactly
+            `10000` or `-10000`.
+
+    CreateAnalysisRequest:
+      type: object
+      required: [externalGameId, pgn, language, moves]
+      additionalProperties: false
+      properties:
+        externalGameId:
+          $ref: '#/components/schemas/ExternalGameId'
+        pgn:
+          type: string
+          minLength: 1
+          maxLength: 65536
+          description: PGN of the finished game. A game without a result (`*`) is rejected with `400`.
+        language:
+          $ref: '#/components/schemas/Language'
+        moves:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          description: |
+            One entry per half-move of the PGN main line, ordered by `ply` starting at 1.
+            A list that does not match the PGN is rejected with `400`.
+          items:
+            $ref: '#/components/schemas/MoveEvaluation'
+
+    MoveClassification:
+      type: object
+      required: [ply, classification]
+      additionalProperties: false
+      properties:
+        ply:
+          type: integer
+          minimum: 1
+        classification:
+          $ref: '#/components/schemas/Classification'
+
+    AnalysisAccepted:
+      type: object
+      required: [analysisId, classifications, explanationsStatus]
+      additionalProperties: false
+      properties:
+        analysisId:
+          $ref: '#/components/schemas/AnalysisId'
+        classifications:
+          type: array
+          description: One entry per submitted move, ordered by `ply`.
+          items:
+            $ref: '#/components/schemas/MoveClassification'
+        explanationsStatus:
+          type: string
+          enum: [pending, ready]
+          description: '`pending` with status `202`, `ready` with status `200`.'
+
+    Explanation:
+      type: object
+      required: [ply, text]
+      additionalProperties: false
+      properties:
+        ply:
+          type: integer
+          minimum: 1
+        text:
+          type: string
+          description: |
+            Two or three sentences in the requested language. Mentions only the move played
+            and the engine's best move, never invented variations.
+
+    AnalysisResult:
+      type: object
+      required: [status, classifications, explanations]
+      additionalProperties: false
+      properties:
+        status:
+          $ref: '#/components/schemas/AnalysisStatus'
+        classifications:
+          type: array
+          description: One entry per move of the game, ordered by `ply`.
+          items:
+            $ref: '#/components/schemas/MoveClassification'
+        explanations:
+          type: array
+          maxItems: 3
+          description: |
+            Explanations of up to three worst moves, in the language of the analysis.
+            Empty unless `status` is `ready`.
+          items:
+            $ref: '#/components/schemas/Explanation'
+
+    ProblemDetails:
+      type: object
+      description: RFC 9457 problem details. The server may add extension members.
+      properties:
+        type:
+          type: string
+          format: uri-reference
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference
+
+    ValidationProblemDetails:
+      allOf:
+        - $ref: '#/components/schemas/ProblemDetails'
+        - type: object
+          required: [errors]
+          properties:
+            errors:
+              type: object
+              description: Validation messages keyed by the path of the invalid field.
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+
+    TooManyRequestsProblem:
+      allOf:
+        - $ref: '#/components/schemas/ProblemDetails'
+        - type: object
+          required: [code]
+          properties:
+            code:
+              type: string
+              enum: [daily_quota_exceeded, rate_limited]
+              description: |
+                `daily_quota_exceeded` - the installation used up its daily quota;
+                `rate_limited` - requests arrive too fast.
