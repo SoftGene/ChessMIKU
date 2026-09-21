@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\ChessReview.Domain\ChessReview.Domain.csproj" />
+    <ProjectReference Include="..\ChessReview.Infrastructure\ChessReview.Infrastructure.csproj" />
+    <ProjectReference Include="..\ChessReview.ExplanationWorker\ChessReview.ExplanationWorker.csproj" />
+  </ItemGroup>
+
+</Project>

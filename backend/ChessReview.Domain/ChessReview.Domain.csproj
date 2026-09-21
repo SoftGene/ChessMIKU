@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Move classification rules. No package or project references: the domain depends on the
+    base class library only (see DomainDependencyTests).
+  -->
+
+</Project>

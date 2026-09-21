@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- EF Core and MS SQL, the language model client, quota accounting. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\ChessReview.Domain\ChessReview.Domain.csproj" />
+  </ItemGroup>
+
+</Project>
