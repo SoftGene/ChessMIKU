@@ -2,11 +2,6 @@ namespace ChessReview.Domain;
 
 public static class MoveClassifier
 {
-    // Loss thresholds in centipawns, section 6 of the spec.
-    private const int InaccuracyFromCp = 50;
-    private const int MistakeFromCp = 100;
-    private const int BlunderFromCp = 300;
-
     public static MoveClassification Classify(MoveEvaluation move)
     {
         if (string.Equals(move.Uci, move.BestMoveUci, StringComparison.Ordinal))
@@ -14,12 +9,16 @@ public static class MoveClassifier
             return MoveClassification.Best;
         }
 
-        return move.LossCp switch
-        {
-            < InaccuracyFromCp => MoveClassification.Good,
-            < MistakeFromCp => MoveClassification.Inaccuracy,
-            < BlunderFromCp => MoveClassification.Mistake,
-            _ => MoveClassification.Blunder,
-        };
+        return ForLoss(move.ExpectedPointsLoss);
     }
+
+    // Thresholds published by chess.com for expected points lost, section 6 of the spec.
+    public static MoveClassification ForLoss(double expectedPointsLoss) => expectedPointsLoss switch
+    {
+        < 0.02 => MoveClassification.Excellent,
+        < 0.05 => MoveClassification.Good,
+        < 0.10 => MoveClassification.Inaccuracy,
+        < 0.20 => MoveClassification.Mistake,
+        _ => MoveClassification.Blunder,
+    };
 }
