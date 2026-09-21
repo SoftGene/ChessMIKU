@@ -127,14 +127,15 @@ paths:
               example:
                 analysisId: 3f2b8c1e-5d4a-4e7b-9c61-0a8d2f4b7e19
                 explanationsStatus: ready
+                # Plies 1-5 follow the Philidor Defense in the opening book; 3...Bg4 leaves it.
                 classifications: &legalMateClassifications
-                  - { ply: 1, classification: best }
-                  - { ply: 2, classification: best }
-                  - { ply: 3, classification: best }
-                  - { ply: 4, classification: good }
-                  - { ply: 5, classification: good }
+                  - { ply: 1, classification: book }
+                  - { ply: 2, classification: book }
+                  - { ply: 3, classification: book }
+                  - { ply: 4, classification: book }
+                  - { ply: 5, classification: book }
                   - { ply: 6, classification: good }
-                  - { ply: 7, classification: good }
+                  - { ply: 7, classification: excellent }
                   - { ply: 8, classification: good }
                   - { ply: 9, classification: best }
                   - { ply: 10, classification: blunder }
@@ -361,16 +362,26 @@ components:
 
     Classification:
       type: string
-      enum: [best, good, inaccuracy, mistake, blunder]
+      enum: [best, excellent, good, book, inaccuracy, mistake, miss, blunder]
       description: |
-        Move class, decided by the backend from the evaluation loss (evaluation before the
-        move minus evaluation after it, with forced mates turned into fixed scores):
+        Move class, decided by the backend with the expected points model. Each engine
+        evaluation is turned into the mover's expected score, from 0.00 (lost) through 0.50
+        (equal) to 1.00 (won); the loss of a move is how much of it the move gave away compared
+        with the engine's best move.
 
+        Checked in this order, the first match wins:
+
+        - `book` - the game so far follows a known opening line and the loss is below 0.05;
         - `best` - the move played is the engine's best move;
-        - `good` - loss below 50;
-        - `inaccuracy` - loss from 50 to 99;
-        - `mistake` - loss from 100 to 299;
-        - `blunder` - loss of 300 or more.
+        - `excellent` - loss below 0.02;
+        - `good` - loss of at least 0.02 and below 0.05;
+        - `inaccuracy` - loss of at least 0.05 and below 0.10;
+        - `miss` - the opponent has just made a mistake or a blunder, and the move gives back
+          the winning position it created; used instead of `mistake` or `blunder`;
+        - `mistake` - loss of at least 0.10 and below 0.20;
+        - `blunder` - loss of 0.20 or more.
+
+        More values may be added later. A client shows a value it does not know without a badge.
 
     AnalysisStatus:
       type: string
