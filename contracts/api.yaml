@@ -18,8 +18,11 @@ info:
 
     ## Conventions
 
-    - Evaluations are integers in centipawns (1/100 of a pawn), always from the point of view
-      of the side that makes the move.
+    - The extension first calls `POST /api/installs` once and then sends the issued identifier
+      as `X-Install-Id` with every request.
+    - Evaluations are raw engine scores, always from the point of view of the side that makes
+      the move: either centipawns (1/100 of a pawn) or a forced mate in N moves. Turning mates
+      into numbers is a classification rule and happens on the backend.
     - Errors use RFC 9457 problem details (`application/problem+json`).
   license:
     name: GNU General Public License v3.0
@@ -30,6 +33,8 @@ servers:
     description: Local development (docker compose)
 
 tags:
+  - name: installs
+    description: Registering an extension installation.
   - name: analyses
     description: Submitting a finished game for review and reading the result.
   - name: health
@@ -39,6 +44,30 @@ security:
   - installId: []
 
 paths:
+  /api/installs:
+    post:
+      tags: [installs]
+      operationId: registerInstall
+      summary: Register a new extension installation
+      description: |
+        Called once, right after the extension is installed. The server generates the
+        identifier; the extension stores it and sends it as `X-Install-Id` from then on.
+
+        Registrations are rate-limited per client IP address, so that a new identifier cannot
+        be taken for every request to get around the daily quota.
+      security: []
+      responses:
+        '201':
+          description: Installation registered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstallRegistered'
+              example:
+                installId: 9b1e4c2a-7f3d-4a58-b6e0-2c8d5f1a9e73
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
   /api/analyses:
     post:
       tags: [analyses]
@@ -61,7 +90,7 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateAnalysisRequest'
             example:
-              externalGameId: '123456789012'
+              externalGameId: live/123456789012
               language: en
               pgn: |
                 [Event "Live Chess"]
@@ -72,19 +101,20 @@ paths:
 
                 1. e4 e5 2. Nf3 d6 3. Bc4 Bg4 4. Nc3 g6 5. Nxe5 Bxd1 6. Bxf7+ Ke7 7. Nd5# 1-0
               moves:
-                - { ply: 1, san: 'e4', uci: e2e4, evalBeforeCp: 30, evalAfterCp: 30, bestMoveUci: e2e4, isMate: false }
-                - { ply: 2, san: 'e5', uci: e7e5, evalBeforeCp: -30, evalAfterCp: -30, bestMoveUci: e7e5, isMate: false }
-                - { ply: 3, san: 'Nf3', uci: g1f3, evalBeforeCp: 32, evalAfterCp: 32, bestMoveUci: g1f3, isMate: false }
-                - { ply: 4, san: 'd6', uci: d7d6, evalBeforeCp: -32, evalAfterCp: -60, bestMoveUci: b8c6, isMate: false }
-                - { ply: 5, san: 'Bc4', uci: f1c4, evalBeforeCp: 60, evalAfterCp: 55, bestMoveUci: d2d4, isMate: false }
-                - { ply: 6, san: 'Bg4', uci: c8g4, evalBeforeCp: -55, evalAfterCp: -95, bestMoveUci: g8f6, isMate: false }
-                - { ply: 7, san: 'Nc3', uci: b1c3, evalBeforeCp: 95, evalAfterCp: 90, bestMoveUci: h2h3, isMate: false }
-                - { ply: 8, san: 'g6', uci: g7g6, evalBeforeCp: -90, evalAfterCp: -130, bestMoveUci: g8f6, isMate: false }
-                - { ply: 9, san: 'Nxe5', uci: f3e5, evalBeforeCp: 130, evalAfterCp: 150, bestMoveUci: f3e5, isMate: false }
-                - { ply: 10, san: 'Bxd1', uci: g4d1, evalBeforeCp: -150, evalAfterCp: -10000, bestMoveUci: d6e5, isMate: true }
-                - { ply: 11, san: 'Bxf7+', uci: c4f7, evalBeforeCp: 10000, evalAfterCp: 10000, bestMoveUci: c4f7, isMate: true }
-                - { ply: 12, san: 'Ke7', uci: e8e7, evalBeforeCp: -10000, evalAfterCp: -10000, bestMoveUci: e8e7, isMate: true }
-                - { ply: 13, san: 'Nd5#', uci: c3d5, evalBeforeCp: 10000, evalAfterCp: 10000, bestMoveUci: c3d5, isMate: true }
+                # Ply 10 walks into mate in two; plies 11-13 carry mate scores instead of centipawns.
+                - { ply: 1, san: 'e4', uci: e2e4, bestMoveUci: e2e4, evalBeforeCp: 30, mateBefore: null, evalAfterCp: 30, mateAfter: null }
+                - { ply: 2, san: 'e5', uci: e7e5, bestMoveUci: e7e5, evalBeforeCp: -30, mateBefore: null, evalAfterCp: -30, mateAfter: null }
+                - { ply: 3, san: 'Nf3', uci: g1f3, bestMoveUci: g1f3, evalBeforeCp: 32, mateBefore: null, evalAfterCp: 32, mateAfter: null }
+                - { ply: 4, san: 'd6', uci: d7d6, bestMoveUci: b8c6, evalBeforeCp: -32, mateBefore: null, evalAfterCp: -60, mateAfter: null }
+                - { ply: 5, san: 'Bc4', uci: f1c4, bestMoveUci: d2d4, evalBeforeCp: 60, mateBefore: null, evalAfterCp: 55, mateAfter: null }
+                - { ply: 6, san: 'Bg4', uci: c8g4, bestMoveUci: g8f6, evalBeforeCp: -55, mateBefore: null, evalAfterCp: -95, mateAfter: null }
+                - { ply: 7, san: 'Nc3', uci: b1c3, bestMoveUci: h2h3, evalBeforeCp: 95, mateBefore: null, evalAfterCp: 90, mateAfter: null }
+                - { ply: 8, san: 'g6', uci: g7g6, bestMoveUci: g8f6, evalBeforeCp: -90, mateBefore: null, evalAfterCp: -130, mateAfter: null }
+                - { ply: 9, san: 'Nxe5', uci: f3e5, bestMoveUci: f3e5, evalBeforeCp: 130, mateBefore: null, evalAfterCp: 150, mateAfter: null }
+                - { ply: 10, san: 'Bxd1', uci: g4d1, bestMoveUci: d6e5, evalBeforeCp: -150, mateBefore: null, evalAfterCp: null, mateAfter: -2 }
+                - { ply: 11, san: 'Bxf7+', uci: c4f7, bestMoveUci: c4f7, evalBeforeCp: null, mateBefore: 2, evalAfterCp: null, mateAfter: 1 }
+                - { ply: 12, san: 'Ke7', uci: e8e7, bestMoveUci: e8e7, evalBeforeCp: null, mateBefore: -1, evalAfterCp: null, mateAfter: -1 }
+                - { ply: 13, san: 'Nd5#', uci: c3d5, bestMoveUci: c3d5, evalBeforeCp: null, mateBefore: 1, evalAfterCp: null, mateAfter: 0 }
       responses:
         '200':
           description: |
@@ -212,8 +242,9 @@ components:
       in: header
       name: X-Install-Id
       description: |
-        Anonymous identifier of the extension installation, a UUID. It carries no personal
-        data. Requests with a missing or unknown identifier get `401`.
+        Anonymous identifier of the extension installation, a UUID issued by
+        `POST /api/installs`. It carries no personal data. Requests with a missing identifier
+        or one the server did not issue get `401`.
 
   headers:
     RetryAfter:
@@ -243,7 +274,9 @@ components:
                 - The game is not finished.
 
     UnknownInstall:
-      description: The `X-Install-Id` header is missing or the installation is not known.
+      description: |
+        The `X-Install-Id` header is missing or holds an identifier not issued by
+        `POST /api/installs`.
       content:
         application/problem+json:
           schema:
@@ -252,7 +285,7 @@ components:
             type: https://tools.ietf.org/html/rfc9110#section-15.5.2
             title: Unknown installation
             status: 401
-            detail: The X-Install-Id header is missing or not registered.
+            detail: The X-Install-Id header is missing or was not issued by this server.
 
     AnalysisNotFound:
       description: No analysis with this identifier exists.
@@ -302,10 +335,24 @@ components:
 
     ExternalGameId:
       type: string
-      pattern: '^[0-9]{1,20}$'
-      description: Number of the game on chess.com, as it appears in the game URL. Cache key.
+      pattern: '^(live|daily)/[0-9]{1,20}$'
+      description: |
+        Type and number of the game on chess.com, taken from the game URL:
+        `https://www.chess.com/game/live/123456789012` gives `live/123456789012`. Live and
+        daily games are numbered independently, so the number alone is not unique. Cache key.
       examples:
-        - '123456789012'
+        - live/123456789012
+        - daily/987654321
+
+    InstallRegistered:
+      type: object
+      required: [installId]
+      additionalProperties: false
+      properties:
+        installId:
+          type: string
+          format: uuid
+          description: Identifier to send as `X-Install-Id` from now on.
 
     Language:
       type: string
@@ -316,8 +363,8 @@ components:
       type: string
       enum: [best, good, inaccuracy, mistake, blunder]
       description: |
-        Move class, decided by the backend from the evaluation loss
-        (`evalBeforeCp - evalAfterCp`):
+        Move class, decided by the backend from the evaluation loss (evaluation before the
+        move minus evaluation after it, with forced mates turned into fixed scores):
 
         - `best` - the move played is the engine's best move;
         - `good` - loss below 50;
@@ -344,17 +391,30 @@ components:
         - e7e8q
 
     Centipawns:
-      type: integer
-      minimum: -10000
-      maximum: 10000
+      type: [integer, 'null']
+      minimum: -32000
+      maximum: 32000
       description: |
-        Evaluation in centipawns from the point of view of the side making the move.
-        A forced mate is encoded as `10000` (that side mates) or `-10000` (that side is mated).
+        Centipawn score as the engine reports it (`score cp`), from the point of view of the
+        side making the move. `null` when the engine reports a forced mate instead.
+
+    MateIn:
+      type: [integer, 'null']
+      minimum: -500
+      maximum: 500
+      description: |
+        Forced mate in this many moves as the engine reports it (`score mate`, moves, not
+        half-moves), from the point of view of the side making the move: positive - that side
+        mates, negative - that side is mated. `null` when the engine reports centipawns.
 
     MoveEvaluation:
       type: object
-      description: Raw engine evaluations of one half-move of the game.
-      required: [ply, san, uci, evalBeforeCp, evalAfterCp, bestMoveUci, isMate]
+      description: |
+        Raw engine evaluations of one half-move. Each of the two evaluations is either
+        centipawns or a forced mate: exactly one of `evalBeforeCp` and `mateBefore` is set,
+        and exactly one of `evalAfterCp` and `mateAfter`. Any other combination is rejected
+        with `400`.
+      required: [ply, san, uci, bestMoveUci, evalBeforeCp, mateBefore, evalAfterCp, mateAfter]
       additionalProperties: false
       properties:
         ply:
@@ -368,25 +428,30 @@ components:
           description: Move in standard algebraic notation, as in the PGN.
         uci:
           $ref: '#/components/schemas/Uci'
+        bestMoveUci:
+          $ref: '#/components/schemas/Uci'
+          description: The engine's best move in the position before this move.
         evalBeforeCp:
           $ref: '#/components/schemas/Centipawns'
           description: |
             Evaluation of the position before the move, assuming the engine's best move is
             played. Point of view of the side making the move.
+        mateBefore:
+          $ref: '#/components/schemas/MateIn'
+          description: |
+            Forced mate in the position before the move. Never `0`: a side that is already
+            mated has no move to make.
         evalAfterCp:
           $ref: '#/components/schemas/Centipawns'
           description: |
-            Evaluation of the position after the move actually played, from the point of view
-            of the same side (the side that made the move).
-        bestMoveUci:
-          $ref: '#/components/schemas/Uci'
-          description: The engine's best move in the position before this move.
-        isMate:
-          type: boolean
+            Evaluation of the position after the move actually played. The engine reports it
+            for the opponent, who is to move; the extension flips the sign so that it is from
+            the point of view of the side that made the move.
+        mateAfter:
+          $ref: '#/components/schemas/MateIn'
           description: |
-            True when the engine reported a forced mate for either evaluation of this move.
-            Which side mates is given by the sign of that evaluation, which is then exactly
-            `10000` or `-10000`.
+            Forced mate in the position after the move, with the sign flipped the same way.
+            `0` means the move itself delivered checkmate.
 
     CreateAnalysisRequest:
       type: object
