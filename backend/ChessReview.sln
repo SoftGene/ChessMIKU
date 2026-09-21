@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChessReview.Api.Tests", "Ch
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChessReview.Infrastructure.Tests", "ChessReview.Infrastructure.Tests\ChessReview.Infrastructure.Tests.csproj", "{3CA72ACB-40A9-4380-BF09-8DF8FD855D0A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChessReview.Testing", "ChessReview.Testing\ChessReview.Testing.csproj", "{BD6752AE-29D9-461A-A9BE-96AC1FCFADDB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -113,6 +115,18 @@ Global
 		{3CA72ACB-40A9-4380-BF09-8DF8FD855D0A}.Release|x64.Build.0 = Release|Any CPU
 		{3CA72ACB-40A9-4380-BF09-8DF8FD855D0A}.Release|x86.ActiveCfg = Release|Any CPU
 		{3CA72ACB-40A9-4380-BF09-8DF8FD855D0A}.Release|x86.Build.0 = Release|Any CPU
+		{BD6752AE-29D9-461A-A9BE-96AC1FCFADDB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BD6752AE-29D9-461A-A9BE-96AC1FCFADDB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BD6752AE-29D9-461A-A9BE-96AC1FCFADDB}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{BD6752AE-29D9-461A-A9BE-96AC1FCFADDB}.Debug|x64.Build.0 = Debug|Any CPU
+		{BD6752AE-29D9-461A-A9BE-96AC1FCFADDB}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{BD6752AE-29D9-461A-A9BE-96AC1FCFADDB}.Debug|x86.Build.0 = Debug|Any CPU
+		{BD6752AE-29D9-461A-A9BE-96AC1FCFADDB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BD6752AE-29D9-461A-A9BE-96AC1FCFADDB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BD6752AE-29D9-461A-A9BE-96AC1FCFADDB}.Release|x64.ActiveCfg = Release|Any CPU
+		{BD6752AE-29D9-461A-A9BE-96AC1FCFADDB}.Release|x64.Build.0 = Release|Any CPU
+		{BD6752AE-29D9-461A-A9BE-96AC1FCFADDB}.Release|x86.ActiveCfg = Release|Any CPU
+		{BD6752AE-29D9-461A-A9BE-96AC1FCFADDB}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -121,5 +135,6 @@ Global
 		{23352DA5-A969-4381-968D-13183A3947F3} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{18799DCB-DE3A-46FF-9F8B-361B4DA34AE4} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{3CA72ACB-40A9-4380-BF09-8DF8FD855D0A} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{BD6752AE-29D9-461A-A9BE-96AC1FCFADDB} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

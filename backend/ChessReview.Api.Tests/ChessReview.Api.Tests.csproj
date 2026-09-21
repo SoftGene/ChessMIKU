@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ChessReview.Api\ChessReview.Api.csproj" />
+    <ProjectReference Include="..\ChessReview.Testing\ChessReview.Testing.csproj" />
   </ItemGroup>
 
   <ItemGroup>
