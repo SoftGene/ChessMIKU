@@ -3,6 +3,11 @@
   <!-- EF Core and MS SQL, the language model client, quota accounting. -->
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\ChessReview.Domain\ChessReview.Domain.csproj" />
   </ItemGroup>
 
