@@ -43,7 +43,6 @@ internal sealed class ExplanationJobConfiguration : IEntityTypeConfiguration<Exp
 
         job.HasIndex(j => new { j.GameId, j.Language }).IsUnique();
         job.HasIndex(j => new { j.Status, j.CreatedAt });
-        job.HasOne<Game>().WithMany().HasForeignKey(j => j.GameId);
 
         job.ToTable(table =>
         {
