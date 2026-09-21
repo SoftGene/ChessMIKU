@@ -5,4 +5,8 @@
     base class library only (see DomainDependencyTests).
   -->
 
+  <ItemGroup>
+    <EmbeddedResource Include="OpeningBook\lichess-openings.tsv" LogicalName="ChessReview.Domain.lichess-openings.tsv" />
+  </ItemGroup>
+
 </Project>
