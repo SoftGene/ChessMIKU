@@ -7,13 +7,13 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
-    <PackageReference Include="Testcontainers.MsSql" />
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ChessReview.Infrastructure\ChessReview.Infrastructure.csproj" />
+    <ProjectReference Include="..\ChessReview.Testing\ChessReview.Testing.csproj" />
   </ItemGroup>
 
   <ItemGroup>

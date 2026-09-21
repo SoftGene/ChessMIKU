@@ -1,4 +1,5 @@
 using ChessReview.Infrastructure.Persistence;
+using ChessReview.Testing;
 using Microsoft.EntityFrameworkCore;
 using Testcontainers.MsSql;
 
@@ -11,10 +12,7 @@ namespace ChessReview.Infrastructure.Tests;
 /// </summary>
 public sealed class SqlServerFixture : IAsyncLifetime
 {
-    // Keep in step with the mssql image in docker-compose.yml.
-    public const string Image = "mcr.microsoft.com/mssql/server:2025-CU9-ubuntu-24.04";
-
-    private readonly MsSqlContainer _container = new MsSqlBuilder(Image).Build();
+    private readonly MsSqlContainer _container = SqlServerContainer.Create();
 
     public async ValueTask InitializeAsync()
     {
