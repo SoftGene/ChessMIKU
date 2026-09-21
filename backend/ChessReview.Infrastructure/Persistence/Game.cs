@@ -21,6 +21,8 @@ public sealed class Game
     public DateTime CreatedAt { get; set; }
 
     public List<Move> Moves { get; } = [];
+
+    public List<ExplanationJob> ExplanationJobs { get; } = [];
 }
 
 internal sealed class GameConfiguration : IEntityTypeConfiguration<Game>
@@ -34,5 +36,6 @@ internal sealed class GameConfiguration : IEntityTypeConfiguration<Game>
 
         game.HasIndex(g => g.ExternalGameId).IsUnique();
         game.HasMany(g => g.Moves).WithOne().HasForeignKey(m => m.GameId);
+        game.HasMany(g => g.ExplanationJobs).WithOne().HasForeignKey(j => j.GameId);
     }
 }

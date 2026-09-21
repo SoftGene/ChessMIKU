@@ -1,0 +1,123 @@
+using System.Globalization;
+using ChessReview.Domain;
+using ChessReview.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace ChessReview.Api.Analyses;
+
+public sealed record CreateAnalysisResult(AnalysisAccepted Analysis, bool FromCache);
+
+public sealed class AnalysisService(ChessReviewDbContext db)
+{
+    /// <summary>
+    /// Classifies and stores a new game, or reuses the stored one: a game is classified once,
+    /// and each language gets one analysis whose explanations are generated once.
+    /// </summary>
+    public async Task<CreateAnalysisResult> CreateAsync(CreateAnalysisRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await FindOrCreateAsync(request, cancellationToken);
+        }
+        catch (DbUpdateException exception) when (exception.IsDuplicateKey())
+        {
+            // A simultaneous request stored the same game or analysis first: use what it stored.
+            db.ChangeTracker.Clear();
+            return await FindOrCreateAsync(request, cancellationToken);
+        }
+    }
+
+    private async Task<CreateAnalysisResult> FindOrCreateAsync(CreateAnalysisRequest request, CancellationToken cancellationToken)
+    {
+        var language = LanguageCode(request.Language);
+
+        var game = await db.Games
+            .Include(g => g.Moves)
+            .Include(g => g.ExplanationJobs.Where(j => j.Language == language))
+            .SingleOrDefaultAsync(g => g.ExternalGameId == request.ExternalGameId, cancellationToken);
+
+        if (game is null)
+        {
+            game = NewGame(request);
+            db.Games.Add(game);
+        }
+
+        var job = game.ExplanationJobs.SingleOrDefault(j => j.Language == language);
+        var fromCache = job?.Status == ExplanationJobStatus.Ready;
+
+        if (job is null)
+        {
+            job = new ExplanationJob { Language = language };
+            game.ExplanationJobs.Add(job);
+        }
+        else if (job.Status == ExplanationJobStatus.Failed)
+        {
+            // The contract has no failed status for a new request: queue the explanations again.
+            job.Status = ExplanationJobStatus.Pending;
+            job.Attempts = 0;
+            job.LastError = null;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        return new CreateAnalysisResult(Accepted(game, job, fromCache), fromCache);
+    }
+
+    private static AnalysisAccepted Accepted(Game game, ExplanationJob job, bool ready) => new(
+        job.Id,
+        [.. game.Moves.OrderBy(m => m.Ply).Select(m => new MoveClassificationResult(m.Ply, m.Classification))],
+        ready ? ExplanationsStatus.Ready : ExplanationsStatus.Pending);
+
+    private static Game NewGame(CreateAnalysisRequest request)
+    {
+        var pgn = PgnGame.Parse(request.Pgn);
+        var classes = MoveClassifier.ClassifyGame([.. request.Moves.Select(ToEvaluation)], OpeningBook.Lichess);
+
+        var game = new Game
+        {
+            ExternalGameId = request.ExternalGameId,
+            Pgn = request.Pgn,
+            WhiteUser = pgn.Tag("White") ?? "",
+            BlackUser = pgn.Tag("Black") ?? "",
+            PlayedAt = PlayedAt(pgn),
+        };
+
+        game.Moves.AddRange(request.Moves.Select((move, index) => new Move
+        {
+            Ply = (short)move.Ply,
+            San = move.San,
+            Uci = move.Uci,
+            BestMoveUci = move.BestMoveUci,
+            EvalBeforeCp = move.EvalBeforeCp,
+            MateBefore = (short?)move.MateBefore,
+            EvalAfterCp = move.EvalAfterCp,
+            MateAfter = (short?)move.MateAfter,
+            Classification = classes[index],
+        }));
+
+        return game;
+    }
+
+    private static MoveEvaluation ToEvaluation(MoveEvaluationRequest move) => new(
+        move.Ply,
+        move.Uci,
+        move.BestMoveUci,
+        Score(move.EvalBeforeCp, move.MateBefore),
+        Score(move.EvalAfterCp, move.MateAfter));
+
+    private static EngineScore Score(int? centipawns, int? mateIn) =>
+        centipawns is { } value ? EngineScore.FromCentipawns(value) : EngineScore.FromMateIn(mateIn!.Value);
+
+    // chess.com writes the start of the game as UTCDate "2026.09.20" and UTCTime "18:47:52".
+    private static DateTime? PlayedAt(PgnGame pgn) =>
+        DateTime.TryParseExact(
+            $"{pgn.Tag("UTCDate")} {pgn.Tag("UTCTime")}",
+            "yyyy.MM.dd HH:mm:ss",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+            out var playedAt)
+            ? playedAt
+            : null;
+
+    private static string LanguageCode(Language language) => language.ToString().ToLowerInvariant();
+}
