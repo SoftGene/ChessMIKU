@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 using ChessReview.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using static ChessReview.Api.Tests.AnalysisApi;
 
 namespace ChessReview.Api.Tests;
 
@@ -26,9 +27,9 @@ public class AnalysesTests(ApiFactory api)
     public async Task Repeating_the_request_while_explanations_are_pending_returns_the_same_analysis()
     {
         var request = NewGameRequest();
-        var first = await PostAsync(request);
+        var first = await api.PostAnalysisAsync(request);
 
-        var second = await PostAsync(request);
+        var second = await api.PostAnalysisAsync(request);
 
         Assert.Equal(HttpStatusCode.Accepted, second.Status);
         Assert.Equal(first.AnalysisId, second.AnalysisId);
@@ -40,10 +41,10 @@ public class AnalysesTests(ApiFactory api)
     public async Task A_game_with_ready_explanations_comes_from_the_cache()
     {
         var request = NewGameRequest();
-        var first = await PostAsync(request);
-        await UpdateJobAsync(first.AnalysisId!.Value, job => job.Status = ExplanationJobStatus.Ready);
+        var first = await api.PostAnalysisAsync(request);
+        await api.UpdateJobAsync(first.AnalysisId!.Value, job => job.Status = ExplanationJobStatus.Ready);
 
-        var cached = await PostAsync(request);
+        var cached = await api.PostAnalysisAsync(request);
 
         Assert.Equal(HttpStatusCode.OK, cached.Status);
         Assert.Equal(first.AnalysisId, cached.AnalysisId);
@@ -54,14 +55,14 @@ public class AnalysesTests(ApiFactory api)
     public async Task A_cached_game_is_not_classified_again()
     {
         var request = NewGameRequest();
-        await PostAsync(request);
+        await api.PostAnalysisAsync(request);
 
         // The same game with other evaluations: 5...Bxd1 would no longer be a blunder.
         var replayed = request.DeepClone().AsObject();
         var bxd1 = replayed["moves"]![9]!;
         bxd1["evalAfterCp"] = -150;
         bxd1["mateAfter"] = null;
-        var second = await PostAsync(replayed);
+        var second = await api.PostAnalysisAsync(replayed);
 
         Assert.Equal("blunder", second.Body["classifications"]![9]!["classification"]!.GetValue<string>());
         Assert.Equal(13, await CountAsync(db => db.Moves, request));
@@ -71,11 +72,11 @@ public class AnalysesTests(ApiFactory api)
     public async Task The_same_game_in_another_language_is_a_new_analysis()
     {
         var english = NewGameRequest();
-        var inEnglish = await PostAsync(english);
+        var inEnglish = await api.PostAnalysisAsync(english);
         var russian = english.DeepClone().AsObject();
         russian["language"] = "ru";
 
-        var inRussian = await PostAsync(russian);
+        var inRussian = await api.PostAnalysisAsync(russian);
 
         Assert.Equal(HttpStatusCode.Accepted, inRussian.Status);
         Assert.NotEqual(inEnglish.AnalysisId, inRussian.AnalysisId);
@@ -87,15 +88,15 @@ public class AnalysesTests(ApiFactory api)
     public async Task Failed_explanations_are_queued_again()
     {
         var request = NewGameRequest();
-        var first = await PostAsync(request);
-        await UpdateJobAsync(first.AnalysisId!.Value, job =>
+        var first = await api.PostAnalysisAsync(request);
+        await api.UpdateJobAsync(first.AnalysisId!.Value, job =>
         {
             job.Status = ExplanationJobStatus.Failed;
             job.Attempts = 3;
             job.LastError = "The model did not answer.";
         });
 
-        var retried = await PostAsync(request);
+        var retried = await api.PostAnalysisAsync(request);
 
         Assert.Equal(HttpStatusCode.Accepted, retried.Status);
         Assert.Equal(first.AnalysisId, retried.AnalysisId);
@@ -148,23 +149,11 @@ public class AnalysesTests(ApiFactory api)
         // A double click on the review button.
         var request = NewGameRequest();
 
-        var results = await Task.WhenAll(Enumerable.Range(0, 5).Select(_ => PostAsync(request)));
+        var results = await Task.WhenAll(Enumerable.Range(0, 5).Select(_ => api.PostAnalysisAsync(request)));
 
         Assert.All(results, result => Assert.Equal(HttpStatusCode.Accepted, result.Status));
         Assert.Single(results.Select(result => result.AnalysisId).Distinct());
         Assert.Equal((1, 1), (await CountAsync(db => db.Games, request), await CountAsync(db => db.ExplanationJobs, request)));
-    }
-
-    private sealed record Posted(HttpStatusCode Status, Guid? AnalysisId, JsonObject Body);
-
-    private async Task<Posted> PostAsync(JsonObject request)
-    {
-        using var client = api.CreateClient();
-        using var response = await client.PostAsJsonAsync("/api/analyses", request, Ct);
-        var body = await response.Content.ReadFromJsonAsync<JsonObject>(Ct) ?? throw new InvalidOperationException("Empty response body.");
-        var analysisId = body["analysisId"]?.GetValue<string>();
-
-        return new Posted(response.StatusCode, analysisId is null ? null : Guid.Parse(analysisId), body);
     }
 
     private async Task<int> CountAsync<T>(Func<ChessReviewDbContext, IQueryable<T>> rows, JsonObject request)
@@ -187,34 +176,5 @@ public class AnalysesTests(ApiFactory api)
     {
         await using var scope = api.Services.CreateAsyncScope();
         return await scope.ServiceProvider.GetRequiredService<ChessReviewDbContext>().ExplanationJobs.AsNoTracking().SingleAsync(j => j.Id == analysisId, Ct);
-    }
-
-    private async Task UpdateJobAsync(Guid analysisId, Action<ExplanationJob> change)
-    {
-        await using var scope = api.Services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<ChessReviewDbContext>();
-        change(await db.ExplanationJobs.SingleAsync(j => j.Id == analysisId, Ct));
-        await db.SaveChangesAsync(Ct);
-    }
-
-    // The contract example with a game id of its own, so that tests do not share cached games.
-    private static JsonObject NewGameRequest()
-    {
-        var request = Contract.Example(Contract.CreateAnalysisRequest);
-        request["externalGameId"] = $"live/{Random.Shared.NextInt64(1, 99_999_999_999)}";
-        return request;
-    }
-
-    private static void AssertMatchesExample(string[] examplePath, JsonObject? actual)
-    {
-        Assert.NotNull(actual);
-        var expected = Contract.Example(examplePath);
-
-        // The example shows one possible id; the server issues its own.
-        Assert.True(Guid.TryParse(actual["analysisId"]?.GetValue<string>(), out _), $"analysisId is not a UUID: {actual}");
-        expected.Remove("analysisId");
-        actual.Remove("analysisId");
-
-        Assert.True(JsonNode.DeepEquals(expected, actual), $"Expected {expected.ToJsonString()}\nActual   {actual.ToJsonString()}");
     }
 }

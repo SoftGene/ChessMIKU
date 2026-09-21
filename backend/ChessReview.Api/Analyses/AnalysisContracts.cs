@@ -138,3 +138,17 @@ public sealed record AnalysisAccepted(
     ExplanationsStatus ExplanationsStatus);
 
 public sealed record MoveClassificationResult(int Ply, MoveClassification Classification);
+
+public enum AnalysisStatus
+{
+    Pending,
+    Ready,
+    Failed,
+}
+
+public sealed record AnalysisResult(
+    AnalysisStatus Status,
+    IReadOnlyList<MoveClassificationResult> Classifications,
+    IReadOnlyList<ExplanationResult> Explanations);
+
+public sealed record ExplanationResult(int Ply, string Text);

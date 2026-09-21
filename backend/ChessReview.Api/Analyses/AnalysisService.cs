@@ -63,6 +63,44 @@ public sealed class AnalysisService(ChessReviewDbContext db)
         return new CreateAnalysisResult(Accepted(game, job, fromCache), fromCache);
     }
 
+    /// <summary>
+    /// The analysis with its classifications, and its explanations once all of them are ready.
+    /// Null when there is no such analysis.
+    /// </summary>
+    public async Task<AnalysisResult?> FindAsync(Guid analysisId, CancellationToken cancellationToken)
+    {
+        var job = await db.ExplanationJobs.AsNoTracking().SingleOrDefaultAsync(j => j.Id == analysisId, cancellationToken);
+        if (job is null)
+        {
+            return null;
+        }
+
+        var classifications = await db.Moves.AsNoTracking()
+            .Where(m => m.GameId == job.GameId)
+            .OrderBy(m => m.Ply)
+            .Select(m => new MoveClassificationResult(m.Ply, m.Classification))
+            .ToListAsync(cancellationToken);
+
+        // The worker may store explanations one by one: publish them only together.
+        List<ExplanationResult> explanations = job.Status == ExplanationJobStatus.Ready
+            ? await db.Explanations.AsNoTracking()
+                .Where(e => e.GameId == job.GameId && e.Language == job.Language)
+                .OrderBy(e => e.Ply)
+                .Select(e => new ExplanationResult(e.Ply, e.Text))
+                .ToListAsync(cancellationToken)
+            : [];
+
+        return new AnalysisResult(Status(job.Status), classifications, explanations);
+    }
+
+    private static AnalysisStatus Status(ExplanationJobStatus status) => status switch
+    {
+        ExplanationJobStatus.Pending => AnalysisStatus.Pending,
+        ExplanationJobStatus.Ready => AnalysisStatus.Ready,
+        ExplanationJobStatus.Failed => AnalysisStatus.Failed,
+        _ => throw new ArgumentOutOfRangeException(nameof(status), status, null),
+    };
+
     private static AnalysisAccepted Accepted(Game game, ExplanationJob job, bool ready) => new(
         job.Id,
         [.. game.Moves.OrderBy(m => m.Ply).Select(m => new MoveClassificationResult(m.Ply, m.Classification))],
