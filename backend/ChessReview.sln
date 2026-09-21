@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChessReview.Domain.Tests", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChessReview.Api.Tests", "ChessReview.Api.Tests\ChessReview.Api.Tests.csproj", "{18799DCB-DE3A-46FF-9F8B-361B4DA34AE4}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChessReview.Infrastructure.Tests", "ChessReview.Infrastructure.Tests\ChessReview.Infrastructure.Tests.csproj", "{3CA72ACB-40A9-4380-BF09-8DF8FD855D0A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -99,6 +101,18 @@ Global
 		{18799DCB-DE3A-46FF-9F8B-361B4DA34AE4}.Release|x64.Build.0 = Release|Any CPU
 		{18799DCB-DE3A-46FF-9F8B-361B4DA34AE4}.Release|x86.ActiveCfg = Release|Any CPU
 		{18799DCB-DE3A-46FF-9F8B-361B4DA34AE4}.Release|x86.Build.0 = Release|Any CPU
+		{3CA72ACB-40A9-4380-BF09-8DF8FD855D0A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3CA72ACB-40A9-4380-BF09-8DF8FD855D0A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3CA72ACB-40A9-4380-BF09-8DF8FD855D0A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{3CA72ACB-40A9-4380-BF09-8DF8FD855D0A}.Debug|x64.Build.0 = Debug|Any CPU
+		{3CA72ACB-40A9-4380-BF09-8DF8FD855D0A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{3CA72ACB-40A9-4380-BF09-8DF8FD855D0A}.Debug|x86.Build.0 = Debug|Any CPU
+		{3CA72ACB-40A9-4380-BF09-8DF8FD855D0A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3CA72ACB-40A9-4380-BF09-8DF8FD855D0A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3CA72ACB-40A9-4380-BF09-8DF8FD855D0A}.Release|x64.ActiveCfg = Release|Any CPU
+		{3CA72ACB-40A9-4380-BF09-8DF8FD855D0A}.Release|x64.Build.0 = Release|Any CPU
+		{3CA72ACB-40A9-4380-BF09-8DF8FD855D0A}.Release|x86.ActiveCfg = Release|Any CPU
+		{3CA72ACB-40A9-4380-BF09-8DF8FD855D0A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -106,5 +120,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{23352DA5-A969-4381-968D-13183A3947F3} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{18799DCB-DE3A-46FF-9F8B-361B4DA34AE4} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{3CA72ACB-40A9-4380-BF09-8DF8FD855D0A} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal
