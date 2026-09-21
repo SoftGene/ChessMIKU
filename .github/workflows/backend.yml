@@ -1,11 +1,9 @@
 name: backend
 
 on:
+  # Every pull request, without a paths filter: build-and-test is a required check on main,
+  # and a check skipped by a filter never reports, which blocks the merge.
   pull_request:
-    paths:
-      - 'backend/**'
-      - 'global.json'
-      - '.github/workflows/backend.yml'
   push:
     branches: [main]
     paths:
