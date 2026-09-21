@@ -19,6 +19,15 @@ internal static class Contract
     public static readonly string[] AnalysisFromCache =
         ["paths", "/api/analyses", "post", "responses", "200", "content", "application/json", "example"];
 
+    public static readonly string[] AnalysisPending = AnalysisResult("pending");
+
+    public static readonly string[] AnalysisReady = AnalysisResult("ready");
+
+    public static readonly string[] AnalysisFailed = AnalysisResult("failed");
+
+    public static readonly string[] AnalysisNotFound =
+        ["components", "responses", "AnalysisNotFound", "content", "application/problem+json", "example"];
+
     private static readonly JsonNode Document = Load();
 
     /// <summary>A fresh copy of the example at <paramref name="path"/>.</summary>
@@ -26,6 +35,9 @@ internal static class Contract
         path.Aggregate(Document, (node, key) => node[key] ?? throw new KeyNotFoundException($"{string.Join('/', path)}: no '{key}'"))
             .DeepClone()
             .AsObject();
+
+    private static string[] AnalysisResult(string example) =>
+        ["paths", "/api/analyses/{analysisId}", "get", "responses", "200", "content", "application/json", "examples", example, "value"];
 
     private static JsonNode Load()
     {
