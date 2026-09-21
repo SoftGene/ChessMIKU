@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Background service that takes explanation jobs from the database queue and calls the
+    language model. It runs inside the API process: docker compose has only api and mssql.
+  -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\ChessReview.Infrastructure\ChessReview.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
