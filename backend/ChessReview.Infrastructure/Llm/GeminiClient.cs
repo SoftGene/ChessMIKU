@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
@@ -14,8 +15,10 @@ public sealed class GeminiOptions
     [Required]
     public string ApiKey { get; set; } = "";
 
+    /// <summary>Models to ask in turn: each has its own free-tier limits.</summary>
     [Required]
-    public string Model { get; set; } = "";
+    [MinLength(1)]
+    public string[] Models { get; set; } = [];
 }
 
 /// <summary>
@@ -24,11 +27,37 @@ public sealed class GeminiOptions
 /// </summary>
 public sealed class GeminiClient(HttpClient http, IOptions<GeminiOptions> options) : ILlmClient
 {
-    public string Model => options.Value.Model;
-
-    public async Task<string> GenerateJsonAsync(LlmRequest request, CancellationToken cancellationToken)
+    public async Task<LlmAnswer> GenerateJsonAsync(LlmRequest request, CancellationToken cancellationToken)
     {
-        using var message = new HttpRequestMessage(HttpMethod.Post, $"v1beta/models/{Uri.EscapeDataString(Model)}:generateContent")
+        var refusals = new List<string>();
+        foreach (var model in options.Value.Models)
+        {
+            var (response, body) = await SendAsync(model, request, cancellationToken);
+            using (response)
+            {
+                if (response.IsSuccessStatusCode)
+                {
+                    return new LlmAnswer(AnswerText(body), model);
+                }
+
+                var error = $"{model}: {(int)response.StatusCode} {response.StatusCode}: {ErrorMessage(body)}";
+
+                // A model at its limit or overloaded may leave room in the next one: each has its own limits.
+                if (response.StatusCode is not (HttpStatusCode.TooManyRequests or HttpStatusCode.ServiceUnavailable))
+                {
+                    throw new LlmException($"Gemini answered {error}");
+                }
+
+                refusals.Add(error);
+            }
+        }
+
+        throw new LlmException($"Every Gemini model refused. {string.Join("; ", refusals)}");
+    }
+
+    private async Task<(HttpResponseMessage Response, string Body)> SendAsync(string model, LlmRequest request, CancellationToken cancellationToken)
+    {
+        using var message = new HttpRequestMessage(HttpMethod.Post, $"v1beta/models/{Uri.EscapeDataString(model)}:generateContent")
         {
             Content = JsonContent.Create(new
             {
@@ -41,15 +70,8 @@ public sealed class GeminiClient(HttpClient http, IOptions<GeminiOptions> option
         // In a header, not in the URL: URLs end up in logs.
         message.Headers.Add("x-goog-api-key", options.Value.ApiKey);
 
-        using var response = await http.SendAsync(message, cancellationToken);
-        var body = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new LlmException($"Gemini answered {(int)response.StatusCode} {response.StatusCode}: {ErrorMessage(body)}");
-        }
-
-        return AnswerText(body);
+        var response = await http.SendAsync(message, cancellationToken);
+        return (response, await response.Content.ReadAsStringAsync(cancellationToken));
     }
 
     private static string AnswerText(string body)

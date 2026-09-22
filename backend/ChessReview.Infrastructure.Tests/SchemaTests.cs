@@ -52,6 +52,18 @@ public class SchemaTests(SqlServerFixture sql)
     }
 
     [Fact]
+    public async Task Daily_usage_counts_only_analyses()
+    {
+        await using var db = sql.CreateContext();
+
+        var columns = await db.Database.SqlQueryRaw<string>(
+            "SELECT COLUMN_NAME AS Value FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'UsageDaily'")
+            .ToListAsync(Ct);
+
+        Assert.Equal(["AnalysisCount", "Date", "InstallId"], columns.Order());
+    }
+
+    [Fact]
     public async Task Evaluations_are_whole_numbers_without_floating_point_columns()
     {
         await using var db = sql.CreateContext();

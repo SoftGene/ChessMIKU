@@ -35,8 +35,8 @@ public sealed class DailyQuota(ChessReviewDbContext db, TimeProvider time, IOpti
         // requests of the day wait for one insert instead of colliding on the key.
         await db.Database.ExecuteSqlAsync(
             $"""
-            INSERT INTO UsageDaily (InstallId, Date, AnalysisCount, ExplanationCount)
-            SELECT {installId}, {today}, 0, 0
+            INSERT INTO UsageDaily (InstallId, Date, AnalysisCount)
+            SELECT {installId}, {today}, 0
             WHERE NOT EXISTS (
                 SELECT 1 FROM UsageDaily WITH (UPDLOCK, HOLDLOCK)
                 WHERE InstallId = {installId} AND Date = {today})

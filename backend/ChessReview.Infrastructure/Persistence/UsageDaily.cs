@@ -11,8 +11,6 @@ public sealed class UsageDaily
     public DateOnly Date { get; set; }
 
     public int AnalysisCount { get; set; }
-
-    public int ExplanationCount { get; set; }
 }
 
 internal sealed class UsageDailyConfiguration : IEntityTypeConfiguration<UsageDaily>

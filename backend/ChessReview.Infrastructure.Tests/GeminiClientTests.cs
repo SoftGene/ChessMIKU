@@ -6,24 +6,27 @@ using Microsoft.Extensions.Options;
 
 namespace ChessReview.Infrastructure.Tests;
 
-// No network: every answer comes from a handler that records the request.
+// No network: every answer comes from a handler that records the requests.
 public class GeminiClientTests
 {
     private const string Key = "test-key-7f3a";
 
+    private const string Base = "https://generativelanguage.googleapis.com/v1beta/models/";
+
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task The_request_carries_the_instructions_and_the_input_to_the_configured_model()
+    public async Task The_request_carries_the_instructions_and_the_input_to_the_first_model()
     {
-        var handler = new RecordingHandler(HttpStatusCode.OK, Answer("{}"));
+        var handler = new RecordingHandler(_ => (HttpStatusCode.OK, Answer("{}")));
 
         await Client(handler).GenerateJsonAsync(new LlmRequest("Explain the moves.", "{\"moves\":[]}"), Ct);
 
-        Assert.Equal(HttpMethod.Post, handler.Request!.Method);
-        Assert.Equal("https://generativelanguage.googleapis.com/v1beta/models/gemini-test:generateContent", handler.Request.RequestUri!.ToString());
-        Assert.Equal([Key], handler.Request.Headers.GetValues("x-goog-api-key"));
-        var body = JsonNode.Parse(handler.RequestBody!)!;
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal(HttpMethod.Post, request.Method);
+        Assert.Equal($"{Base}gemini-test:generateContent", request.Uri);
+        Assert.Equal([Key], request.KeyHeader);
+        var body = JsonNode.Parse(request.Body)!;
         Assert.Equal("Explain the moves.", body["systemInstruction"]!["parts"]![0]!["text"]!.GetValue<string>());
         Assert.Equal("user", body["contents"]![0]!["role"]!.GetValue<string>());
         Assert.Equal("{\"moves\":[]}", body["contents"]![0]!["parts"]![0]!["text"]!.GetValue<string>());
@@ -41,21 +44,50 @@ public class GeminiClientTests
             ]}, "finishReason": "STOP"}]}
             """;
 
-        var text = await Client(new RecordingHandler(HttpStatusCode.OK, answer)).GenerateJsonAsync(new LlmRequest("i", "x"), Ct);
+        var reply = await Client(new RecordingHandler(_ => (HttpStatusCode.OK, answer))).GenerateJsonAsync(new LlmRequest("i", "x"), Ct);
 
-        Assert.Equal("{\"ok\":true}", text);
+        Assert.Equal(("{\"ok\":true}", "gemini-test"), (reply.Text, reply.Model));
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.TooManyRequests)]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    public async Task A_model_at_its_limit_or_overloaded_hands_the_request_to_the_next(HttpStatusCode refusal)
+    {
+        var handler = new RecordingHandler(request => request.RequestUri!.AbsolutePath.Contains("gemini-test", StringComparison.Ordinal)
+            ? (refusal, Error((int)refusal, "Try again later."))
+            : (HttpStatusCode.OK, Answer("{\"ok\":true}")));
+
+        var reply = await Client(handler).GenerateJsonAsync(new LlmRequest("i", "x"), Ct);
+
+        Assert.Equal(("{\"ok\":true}", "gemini-spare"), (reply.Text, reply.Model));
+        Assert.Equal([$"{Base}gemini-test:generateContent", $"{Base}gemini-spare:generateContent"], handler.Requests.Select(r => r.Uri));
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.BadRequest)]
+    [InlineData(HttpStatusCode.Unauthorized)]
+    [InlineData(HttpStatusCode.NotFound)]
+    public async Task Other_errors_are_not_retried_on_the_next_model(HttpStatusCode error)
+    {
+        var handler = new RecordingHandler(_ => (error, Error((int)error, "Bad request.")));
+
+        await Assert.ThrowsAsync<LlmException>(() => Client(handler).GenerateJsonAsync(new LlmRequest("i", "x"), Ct));
+
+        Assert.Single(handler.Requests);
     }
 
     [Fact]
-    public async Task An_error_answer_throws_with_its_status_and_message_but_never_the_key()
+    public async Task When_every_model_refuses_the_error_names_each_one_and_never_the_key()
     {
-        var error = """{"error": {"code": 429, "message": "Resource has been exhausted (e.g. check quota).", "status": "RESOURCE_EXHAUSTED"}}""";
+        var handler = new RecordingHandler(request => request.RequestUri!.AbsolutePath.Contains("gemini-test", StringComparison.Ordinal)
+            ? (HttpStatusCode.TooManyRequests, Error(429, "Resource has been exhausted (e.g. check quota)."))
+            : (HttpStatusCode.ServiceUnavailable, Error(503, "This model is currently experiencing high demand.")));
 
-        var exception = await Assert.ThrowsAsync<LlmException>(() =>
-            Client(new RecordingHandler(HttpStatusCode.TooManyRequests, error)).GenerateJsonAsync(new LlmRequest("i", "x"), Ct));
+        var exception = await Assert.ThrowsAsync<LlmException>(() => Client(handler).GenerateJsonAsync(new LlmRequest("i", "x"), Ct));
 
-        Assert.Contains("429", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("Resource has been exhausted", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("gemini-test: 429 TooManyRequests: Resource has been exhausted", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("gemini-spare: 503 ServiceUnavailable: This model is currently experiencing high demand.", exception.Message, StringComparison.Ordinal);
         Assert.DoesNotContain(Key, exception.Message, StringComparison.Ordinal);
     }
 
@@ -71,20 +103,14 @@ public class GeminiClientTests
     public async Task An_answer_without_complete_text_throws_saying_why(string answer, string reason)
     {
         var exception = await Assert.ThrowsAsync<LlmException>(() =>
-            Client(new RecordingHandler(HttpStatusCode.OK, answer)).GenerateJsonAsync(new LlmRequest("i", "x"), Ct));
+            Client(new RecordingHandler(_ => (HttpStatusCode.OK, answer))).GenerateJsonAsync(new LlmRequest("i", "x"), Ct));
 
         Assert.Contains(reason, exception.Message, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void The_model_name_is_the_configured_one()
-    {
-        Assert.Equal("gemini-test", Client(new RecordingHandler(HttpStatusCode.OK, Answer("{}"))).Model);
-    }
-
     private static GeminiClient Client(HttpMessageHandler handler) => new(
         new HttpClient(handler) { BaseAddress = new Uri("https://generativelanguage.googleapis.com/") },
-        Options.Create(new GeminiOptions { ApiKey = Key, Model = "gemini-test" }));
+        Options.Create(new GeminiOptions { ApiKey = Key, Models = ["gemini-test", "gemini-spare"] }));
 
     private static string Answer(string text) =>
         new JsonObject
@@ -96,17 +122,25 @@ public class GeminiClientTests
             }),
         }.ToJsonString();
 
-    private sealed class RecordingHandler(HttpStatusCode status, string answer) : HttpMessageHandler
-    {
-        public HttpRequestMessage? Request { get; private set; }
+    private static string Error(int code, string message) =>
+        new JsonObject { ["error"] = new JsonObject { ["code"] = code, ["message"] = message } }.ToJsonString();
 
-        public string? RequestBody { get; private set; }
+    private sealed record Recorded(HttpMethod Method, string Uri, IEnumerable<string>? KeyHeader, string Body);
+
+    private sealed class RecordingHandler(Func<HttpRequestMessage, (HttpStatusCode Status, string Body)> answer) : HttpMessageHandler
+    {
+        public List<Recorded> Requests { get; } = [];
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            Request = request;
-            RequestBody = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
-            return new HttpResponseMessage(status) { Content = new StringContent(answer, Encoding.UTF8, "application/json") };
+            Requests.Add(new Recorded(
+                request.Method,
+                request.RequestUri!.ToString(),
+                request.Headers.TryGetValues("x-goog-api-key", out var key) ? key : null,
+                request.Content is null ? "" : await request.Content.ReadAsStringAsync(cancellationToken)));
+
+            var (status, body) = answer(request);
+            return new HttpResponseMessage(status) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
         }
     }
 }

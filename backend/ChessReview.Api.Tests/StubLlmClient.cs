@@ -15,8 +15,6 @@ public sealed class StubLlmClient(Func<LlmRequest, string> answer) : ILlmClient
     {
     }
 
-    public string Model => ModelName;
-
     public ConcurrentQueue<LlmRequest> Requests { get; } = new();
 
     /// <summary>Answers every requested ply with the text <paramref name="text"/> gives for it.</summary>
@@ -30,10 +28,10 @@ public sealed class StubLlmClient(Func<LlmRequest, string> answer) : ILlmClient
     public static IReadOnlyList<int> RequestedPlies(LlmRequest request) =>
         [.. JsonNode.Parse(request.Input)!["moves"]!.AsArray().Select(move => move!["ply"]!.GetValue<int>())];
 
-    public Task<string> GenerateJsonAsync(LlmRequest request, CancellationToken cancellationToken)
+    public Task<LlmAnswer> GenerateJsonAsync(LlmRequest request, CancellationToken cancellationToken)
     {
         Requests.Enqueue(request);
-        return Task.FromResult(answer(request));
+        return Task.FromResult(new LlmAnswer(answer(request), ModelName));
     }
 }
 

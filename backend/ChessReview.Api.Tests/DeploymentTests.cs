@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using ChessReview.Testing;
 
@@ -28,6 +29,17 @@ public partial class DeploymentTests
     public void Compose_takes_the_Gemini_key_from_the_environment()
     {
         Assert.Contains("Gemini__ApiKey: ${GEMINI_API_KEY", Compose, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Production_settings_stay_within_the_Gemini_free_tier()
+    {
+        // Free tier, per model: 5 requests a minute, 20 a day for the whole project (AI Studio, 22.09).
+        var settings = JsonNode.Parse(File.ReadAllText(Path.Combine(RepositoryPaths.Root, "backend", "ChessReview.Api", "appsettings.json")))!;
+
+        Assert.True(settings["ExplanationWorker"]!["SecondsBetweenRequests"]!.GetValue<int>() >= 60 / 5, "More than 5 requests a minute.");
+        Assert.True(settings["Quotas"]!["AnalysesPerDay"]!.GetValue<int>() < 20, "One installation could use up the daily limit alone.");
+        Assert.True(settings["Gemini"]!["Models"]!.AsArray().Count >= 2, "No spare model for a model at its limit.");
     }
 
     [Fact]
