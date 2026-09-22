@@ -125,6 +125,34 @@ public class QuotaTests(ApiFactory api)
         Assert.Equal(1, await UsedAsync(host, installId));
     }
 
+    [Fact]
+    public async Task Simultaneous_first_analyses_of_the_day_are_all_counted()
+    {
+        // Nothing is counted for the installation today yet: the requests race to start the count.
+        using var host = WithQuota(100);
+        var installId = await api.NewInstallAsync();
+
+        var results = await Task.WhenAll(Enumerable.Range(0, 20).Select(_ => host.PostAnalysisAsync(NewGameRequest(), installId)));
+
+        Assert.All(results, r => Assert.Equal(HttpStatusCode.Accepted, r.Status));
+        Assert.Equal(20, await UsedAsync(host, installId));
+    }
+
+    [Fact]
+    public async Task A_double_click_among_other_first_analyses_of_the_day_counts_once()
+    {
+        // One request may lose the race for the count of the day, then the race for its game.
+        using var host = WithQuota(100);
+        var installId = await api.NewInstallAsync();
+        var game = NewGameRequest();
+        List<JsonObject> requests = [.. Enumerable.Range(0, 10).Select(i => i % 2 == 0 ? game : NewGameRequest())];
+
+        var results = await Task.WhenAll(requests.Select(request => host.PostAnalysisAsync(request, installId)));
+
+        Assert.All(results, r => Assert.Equal(HttpStatusCode.Accepted, r.Status));
+        Assert.Equal(6, await UsedAsync(host, installId));
+    }
+
     private WebApplicationFactory<Program> WithQuota(int analysesPerDay) => api.WithWebHostBuilder(builder =>
     {
         builder.UseSetting("Quotas:AnalysesPerDay", analysesPerDay.ToString(CultureInfo.InvariantCulture));
