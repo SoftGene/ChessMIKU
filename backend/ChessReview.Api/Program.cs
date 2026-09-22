@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using ChessReview.Api.Analyses;
 using ChessReview.Api.Installs;
 using ChessReview.Api.Limits;
+using ChessReview.ExplanationWorker;
 using ChessReview.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
 using Microsoft.EntityFrameworkCore;
@@ -33,6 +34,7 @@ builder.Services.AddInstallIdAuthentication();
 builder.Services.AddOptions<QuotaOptions>().BindConfiguration(QuotaOptions.Section).ValidateDataAnnotations().ValidateOnStart();
 builder.Services.AddScoped<DailyQuota>();
 builder.Services.AddChessReviewRateLimiting();
+builder.Services.AddExplanationWorker();
 
 builder.Services.AddHealthChecks().AddDbContextCheck<ChessReviewDbContext>();
 
