@@ -15,7 +15,7 @@ public class AnalysesTests(ApiFactory api)
     [Fact]
     public async Task The_contract_example_request_gets_the_contract_example_response()
     {
-        using var client = api.CreateClient();
+        using var client = api.CreateClientAs(api.InstallId);
 
         using var response = await client.PostAsJsonAsync("/api/analyses", NewGameRequest(), Ct);
 
@@ -131,7 +131,7 @@ public class AnalysesTests(ApiFactory api)
         var (breakRequest, field) = InvalidRequests[name];
         var request = NewGameRequest();
         breakRequest(request);
-        using var client = api.CreateClient();
+        using var client = api.CreateClientAs(api.InstallId);
 
         using var response = await client.PostAsJsonAsync("/api/analyses", request, Ct);
 

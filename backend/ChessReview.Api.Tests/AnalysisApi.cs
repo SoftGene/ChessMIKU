@@ -1,15 +1,11 @@
-using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
 using ChessReview.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ChessReview.Api.Tests;
-
-public sealed record Posted(HttpStatusCode Status, Guid? AnalysisId, JsonObject Body);
-
-public sealed record Fetched(HttpStatusCode Status, string? MediaType, JsonObject Body);
 
 /// <summary>Calls to the analyses API and direct database changes shared by the API tests.</summary>
 internal static class AnalysisApi
@@ -24,26 +20,27 @@ internal static class AnalysisApi
         return request;
     }
 
-    public static async Task<Posted> PostAnalysisAsync(this ApiFactory api, JsonObject request)
+    public static Task<Answer> PostAnalysisAsync(this ApiFactory api, JsonObject request) =>
+        api.PostAnalysisAsync(request, api.InstallId);
+
+    public static async Task<Answer> PostAnalysisAsync(this WebApplicationFactory<Program> api, JsonObject request, Guid installId)
     {
-        using var client = api.CreateClient();
+        using var client = api.CreateClientAs(installId);
         using var response = await client.PostAsJsonAsync("/api/analyses", request, Ct);
-        var body = await response.Content.ReadFromJsonAsync<JsonObject>(Ct) ?? throw new InvalidOperationException("Empty response body.");
-        var analysisId = body["analysisId"]?.GetValue<string>();
-
-        return new Posted(response.StatusCode, analysisId is null ? null : Guid.Parse(analysisId), body);
+        return await Answer.ReadAsync(response);
     }
 
-    public static async Task<Fetched> GetAnalysisAsync(this ApiFactory api, Guid analysisId)
+    public static Task<Answer> GetAnalysisAsync(this ApiFactory api, Guid analysisId) =>
+        api.GetAnalysisAsync(analysisId, api.InstallId);
+
+    public static async Task<Answer> GetAnalysisAsync(this WebApplicationFactory<Program> api, Guid analysisId, Guid installId)
     {
-        using var client = api.CreateClient();
+        using var client = api.CreateClientAs(installId);
         using var response = await client.GetAsync($"/api/analyses/{analysisId}", Ct);
-        var body = await response.Content.ReadFromJsonAsync<JsonObject>(Ct) ?? throw new InvalidOperationException("Empty response body.");
-
-        return new Fetched(response.StatusCode, response.Content.Headers.ContentType?.MediaType, body);
+        return await Answer.ReadAsync(response);
     }
 
-    public static async Task WithDatabaseAsync(this ApiFactory api, Func<ChessReviewDbContext, Task> change)
+    public static async Task WithDatabaseAsync(this WebApplicationFactory<Program> api, Func<ChessReviewDbContext, Task> change)
     {
         await using var scope = api.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ChessReviewDbContext>();
@@ -51,24 +48,49 @@ internal static class AnalysisApi
         await db.SaveChangesAsync(Ct);
     }
 
-    public static Task UpdateJobAsync(this ApiFactory api, Guid analysisId, Action<ExplanationJob> change) =>
+    public static async Task<T> ReadDatabaseAsync<T>(this WebApplicationFactory<Program> api, Func<ChessReviewDbContext, Task<T>> read)
+    {
+        await using var scope = api.Services.CreateAsyncScope();
+        return await read(scope.ServiceProvider.GetRequiredService<ChessReviewDbContext>());
+    }
+
+    public static Task UpdateJobAsync(this WebApplicationFactory<Program> api, Guid analysisId, Action<ExplanationJob> change) =>
         api.WithDatabaseAsync(async db => change(await db.ExplanationJobs.SingleAsync(j => j.Id == analysisId, Ct)));
 
     /// <summary>
-    /// Asserts that a response equals a contract example. The server issues its own analysisId,
-    /// so only its format is checked.
+    /// Asserts that a response equals a contract example. The server issues its own analysisId
+    /// and installId, so only their format is checked.
     /// </summary>
     public static void AssertMatchesExample(string[] examplePath, JsonObject? actual)
     {
         Assert.NotNull(actual);
         var expected = Contract.Example(examplePath);
 
-        if (expected.Remove("analysisId"))
+        foreach (var issued in (string[])["analysisId", "installId"])
         {
-            Assert.True(Guid.TryParse(actual["analysisId"]?.GetValue<string>(), out _), $"analysisId is not a UUID: {actual}");
-            actual.Remove("analysisId");
+            if (expected.Remove(issued))
+            {
+                Assert.True(Guid.TryParse(actual[issued]?.GetValue<string>(), out _), $"{issued} is not a UUID: {actual}");
+                actual.Remove(issued);
+            }
         }
 
         Assert.True(JsonNode.DeepEquals(expected, actual), $"Expected {expected.ToJsonString()}\nActual   {actual.ToJsonString()}");
+    }
+
+    /// <summary>
+    /// Asserts that a problem response has the status and every member of a contract example.
+    /// Problem details may carry more members, such as traceId.
+    /// </summary>
+    public static void AssertProblemMatchesExample(string[] examplePath, Answer answer)
+    {
+        var expected = Contract.Example(examplePath);
+
+        Assert.Equal(expected["status"]!.GetValue<long>(), (long)answer.Status);
+        Assert.Equal("application/problem+json", answer.MediaType);
+        foreach (var (name, value) in expected)
+        {
+            Assert.True(JsonNode.DeepEquals(value, answer.Body[name]), $"{name}: expected {value}, got {answer.Body[name]}");
+        }
     }
 }

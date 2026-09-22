@@ -10,6 +10,9 @@ namespace ChessReview.Api.Tests;
 /// </summary>
 internal static class Contract
 {
+    public static readonly string[] InstallRegistered =
+        ["paths", "/api/installs", "post", "responses", "201", "content", "application/json", "example"];
+
     public static readonly string[] CreateAnalysisRequest =
         ["paths", "/api/analyses", "post", "requestBody", "content", "application/json", "example"];
 
@@ -28,6 +31,13 @@ internal static class Contract
     public static readonly string[] AnalysisNotFound =
         ["components", "responses", "AnalysisNotFound", "content", "application/problem+json", "example"];
 
+    public static readonly string[] UnknownInstall =
+        ["components", "responses", "UnknownInstall", "content", "application/problem+json", "example"];
+
+    public static readonly string[] DailyQuotaExceeded = TooManyRequests("dailyQuota");
+
+    public static readonly string[] RateLimited = TooManyRequests("rateLimited");
+
     private static readonly JsonNode Document = Load();
 
     /// <summary>A fresh copy of the example at <paramref name="path"/>.</summary>
@@ -38,6 +48,9 @@ internal static class Contract
 
     private static string[] AnalysisResult(string example) =>
         ["paths", "/api/analyses/{analysisId}", "get", "responses", "200", "content", "application/json", "examples", example, "value"];
+
+    private static string[] TooManyRequests(string example) =>
+        ["components", "responses", "TooManyRequests", "content", "application/problem+json", "examples", example, "value"];
 
     private static JsonNode Load()
     {

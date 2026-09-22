@@ -11,10 +11,11 @@ public class ApiHostTests(ApiFactory api)
 
     // The factory runs the host in the Development environment, where the service container
     // validates every registration on build: a broken registration fails this test.
+    // Without an installation even an unknown path is 401: every path requires one.
     [Fact]
     public async Task Host_starts_and_serves_requests()
     {
-        using var client = api.CreateClient();
+        using var client = api.CreateClientAs(api.InstallId);
 
         using var response = await client.GetAsync("/no-such-endpoint", Ct);
 

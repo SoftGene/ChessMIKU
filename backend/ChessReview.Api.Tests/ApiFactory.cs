@@ -16,6 +16,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private readonly MsSqlContainer _sql = SqlServerContainer.Create();
 
+    /// <summary>A registered installation, for tests that are not about installations.</summary>
+    public Guid InstallId { get; private set; }
+
     public async ValueTask InitializeAsync()
     {
         await _sql.StartAsync();
@@ -23,6 +26,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         // Start the host, and so migrate, once before any test runs: the factory is not safe
         // for concurrent first use, and two hosts would race to create the database.
         _ = Services;
+
+        InstallId = await this.NewInstallAsync();
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -31,6 +36,12 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
         builder.UseSetting("ConnectionStrings:ChessReview", connectionString.ConnectionString);
         builder.UseSetting("Database:MigrateOnStartup", "true");
+
+        // All tests share this host and its installation: only the tests about limits, each on
+        // a host of its own, may reach them.
+        builder.UseSetting("Quotas:AnalysesPerDay", "1000000");
+        builder.UseSetting("RateLimiting:Registrations:PermitLimit", "1000000");
+        builder.UseSetting("RateLimiting:Requests:PermitLimit", "1000000");
     }
 
     public override async ValueTask DisposeAsync()

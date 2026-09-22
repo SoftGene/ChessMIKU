@@ -1,34 +1,45 @@
 using System.Globalization;
+using ChessReview.Api.Limits;
 using ChessReview.Domain;
 using ChessReview.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace ChessReview.Api.Analyses;
 
-public sealed record CreateAnalysisResult(AnalysisAccepted Analysis, bool FromCache);
+public abstract record CreateAnalysisResult
+{
+    public sealed record Accepted(AnalysisAccepted Analysis, bool FromCache) : CreateAnalysisResult;
 
-public sealed class AnalysisService(ChessReviewDbContext db)
+    public sealed record QuotaExceeded(TimeSpan RetryAfter) : CreateAnalysisResult;
+}
+
+public sealed class AnalysisService(ChessReviewDbContext db, DailyQuota quota)
 {
     /// <summary>
     /// Classifies and stores a new game, or reuses the stored one: a game is classified once,
-    /// and each language gets one analysis whose explanations are generated once.
+    /// and each language gets one analysis whose explanations are generated once. Only
+    /// explanations still to generate count against the daily quota of the installation.
     /// </summary>
-    public async Task<CreateAnalysisResult> CreateAsync(CreateAnalysisRequest request, CancellationToken cancellationToken)
+    public async Task<CreateAnalysisResult> CreateAsync(Guid installId, CreateAnalysisRequest request, CancellationToken cancellationToken)
     {
         try
         {
-            return await FindOrCreateAsync(request, cancellationToken);
+            return await FindOrCreateAsync(installId, request, cancellationToken);
         }
         catch (DbUpdateException exception) when (exception.IsDuplicateKey())
         {
-            // A simultaneous request stored the same game or analysis first: use what it stored.
+            // A simultaneous request stored the same game, analysis or first count of the day
+            // first: use what it stored.
             db.ChangeTracker.Clear();
-            return await FindOrCreateAsync(request, cancellationToken);
+            return await FindOrCreateAsync(installId, request, cancellationToken);
         }
     }
 
-    private async Task<CreateAnalysisResult> FindOrCreateAsync(CreateAnalysisRequest request, CancellationToken cancellationToken)
+    private async Task<CreateAnalysisResult> FindOrCreateAsync(Guid installId, CreateAnalysisRequest request, CancellationToken cancellationToken)
     {
+        // The quota count and the analysis it pays for are stored together or not at all.
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+
         var language = LanguageCode(request.Language);
 
         var game = await db.Games
@@ -36,14 +47,21 @@ public sealed class AnalysisService(ChessReviewDbContext db)
             .Include(g => g.ExplanationJobs.Where(j => j.Language == language))
             .SingleOrDefaultAsync(g => g.ExternalGameId == request.ExternalGameId, cancellationToken);
 
+        var job = game?.ExplanationJobs.SingleOrDefault(j => j.Language == language);
+        var fromCache = job?.Status == ExplanationJobStatus.Ready;
+
+        // Only new work for the model counts: a new game, a new language, explanations that failed.
+        var queuesExplanations = job is null || job.Status == ExplanationJobStatus.Failed;
+        if (queuesExplanations && !await quota.TryCountAsync(installId, cancellationToken))
+        {
+            return new CreateAnalysisResult.QuotaExceeded(quota.UntilReset());
+        }
+
         if (game is null)
         {
             game = NewGame(request);
             db.Games.Add(game);
         }
-
-        var job = game.ExplanationJobs.SingleOrDefault(j => j.Language == language);
-        var fromCache = job?.Status == ExplanationJobStatus.Ready;
 
         if (job is null)
         {
@@ -59,8 +77,9 @@ public sealed class AnalysisService(ChessReviewDbContext db)
         }
 
         await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
-        return new CreateAnalysisResult(Accepted(game, job, fromCache), fromCache);
+        return new CreateAnalysisResult.Accepted(Accepted(game, job, fromCache), fromCache);
     }
 
     /// <summary>
