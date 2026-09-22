@@ -1,43 +1,13 @@
-import { findGameInApi } from './game-source';
+import { fetchJson, findFinishedGame, type Lookup } from './archive';
+import { isFindFinishedGame } from './messages';
 
-console.log('Chess Review background service worker loaded');
-
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.type === 'FETCH_GAME') {
-    handleFetchGame(request).then(sendResponse);
-    return true; // Keep message channel open for async response
+// The only part of the extension that goes to the network.
+chrome.runtime.onMessage.addListener((message, sender, sendResponse: (answer: Lookup) => void) => {
+  // Only content scripts of this extension ask, and only in the agreed form.
+  if (sender.id !== chrome.runtime.id || !isFindFinishedGame(message)) {
+    return false;
   }
+
+  findFinishedGame(message.page, new Date(), fetchJson).then(sendResponse, () => sendResponse({ status: 'not-found' }));
+  return true; // The answer comes later.
 });
-
-async function handleFetchGame(info: any) {
-  const { url, players, currentYear, currentMonth, previousYear, previousMonth } = info;
-  
-  if (!players || players.length === 0) {
-    return { pgn: null, error: 'No players found' };
-  }
-  
-  for (const username of players) {
-    // Try current month
-    let pgn = await fetchGameFromApi(username, currentYear, currentMonth, url);
-    if (pgn) return { pgn };
-    
-    // Try previous month (if game was played at the end of month but retrieved later)
-    pgn = await fetchGameFromApi(username, previousYear, previousMonth, url);
-    if (pgn) return { pgn };
-  }
-  
-  return { pgn: null, error: 'Game not found in API' };
-}
-
-async function fetchGameFromApi(username: string, year: string, month: string, url: string): Promise<string | null> {
-  try {
-    const res = await fetch(`https://api.chess.com/pub/player/${username}/games/${year}/${month}`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    return findGameInApi(data, url);
-  } catch (err) {
-    console.error('Error fetching from chess.com API:', err);
-    return null;
-  }
-}
-
