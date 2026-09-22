@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Chess Review",
+  "version": "1.0",
+  "description": "Free post-game analysis with engine evaluation and AI explanations",
+  "permissions": [],
+  "host_permissions": [
+    "*://*.chess.com/*",
+    "http://127.0.0.1:8080/*",
+    "https://*.trycloudflare.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["*://*.chess.com/game/*"],
+      "js": ["content.js"]
+    }
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  }
+}
