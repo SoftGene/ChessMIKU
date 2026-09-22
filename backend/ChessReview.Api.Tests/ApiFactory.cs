@@ -1,7 +1,10 @@
+using ChessReview.Infrastructure.Llm;
 using ChessReview.Testing;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.MsSql;
 
 [assembly: AssemblyFixture(typeof(ChessReview.Api.Tests.ApiFactory))]
@@ -30,12 +33,25 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         InstallId = await this.NewInstallAsync();
     }
 
+    /// <summary>A connection string to a database of its own on the same server.</summary>
+    public string ConnectionString(string database) =>
+        new SqlConnectionStringBuilder(_sql!.GetConnectionString()) { InitialCatalog = database }.ConnectionString;
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        var connectionString = new SqlConnectionStringBuilder(_sql!.GetConnectionString()) { InitialCatalog = "ChessReview" };
-
-        builder.UseSetting("ConnectionStrings:ChessReview", connectionString.ConnectionString);
+        builder.UseSetting("ConnectionStrings:ChessReview", ConnectionString("ChessReview"));
         builder.UseSetting("Database:MigrateOnStartup", "true");
+
+        // The worker would change analyses under the tests' feet: tests run it themselves.
+        builder.UseSetting("ExplanationWorker:Enabled", "false");
+
+        // Never used: the stub replaces the Gemini client, and no HttpClient reaches the network.
+        builder.UseSetting("Gemini:ApiKey", "not-a-key-tests-never-call-gemini");
+        builder.ConfigureTestServices(services =>
+        {
+            services.AddSingleton<ILlmClient>(new StubLlmClient());
+            services.ConfigureHttpClientDefaults(http => http.ConfigurePrimaryHttpMessageHandler(() => new NoNetworkHandler()));
+        });
 
         // All tests share this host and its installation: only the tests about limits, each on
         // a host of its own, may reach them.

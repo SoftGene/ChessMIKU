@@ -34,6 +34,7 @@ services:
     environment:
       ConnectionStrings__ChessReview: Server=mssql;Database=ChessReview;User Id=sa;Password=${MSSQL_SA_PASSWORD:?set MSSQL_SA_PASSWORD in .env};TrustServerCertificate=True
       Database__MigrateOnStartup: "true"
+      Gemini__ApiKey: ${GEMINI_API_KEY:?set GEMINI_API_KEY in .env}
     ports:
       - "8080:8080"
     depends_on:
