@@ -1,6 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ChessReview.Api.Analyses;
+using ChessReview.Api.Installs;
+using ChessReview.Api.Limits;
 using ChessReview.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
 using Microsoft.EntityFrameworkCore;
@@ -24,7 +26,14 @@ builder.Services
     });
 
 builder.Services.AddProblemDetails();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<AnalysisService>();
+
+builder.Services.AddInstallIdAuthentication();
+builder.Services.AddOptions<QuotaOptions>().BindConfiguration(QuotaOptions.Section).ValidateDataAnnotations().ValidateOnStart();
+builder.Services.AddScoped<DailyQuota>();
+builder.Services.AddChessReviewRateLimiting();
+
 builder.Services.AddHealthChecks().AddDbContextCheck<ChessReviewDbContext>();
 
 var app = builder.Build();
@@ -36,7 +45,12 @@ if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
     await scope.ServiceProvider.GetRequiredService<ChessReviewDbContext>().Database.MigrateAsync();
 }
 
+// The rate limiter needs the installation, and refuses requests before authorization answers 401.
+app.UseAuthentication();
+app.UseRateLimiter();
+app.UseAuthorization();
+
 app.MapControllers();
-app.MapHealthChecks("/healthz");
+app.MapHealthChecks("/healthz").AllowAnonymous();
 
 await app.RunAsync();

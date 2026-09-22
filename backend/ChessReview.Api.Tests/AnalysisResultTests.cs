@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text.Json.Nodes;
 using ChessReview.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using static ChessReview.Api.Tests.AnalysisApi;
@@ -91,14 +90,7 @@ public class AnalysisResultTests(ApiFactory api)
     {
         var result = await api.GetAnalysisAsync(Guid.NewGuid());
 
-        Assert.Equal(HttpStatusCode.NotFound, result.Status);
-        Assert.Equal("application/problem+json", result.MediaType);
-
-        // Problem details may carry more members, such as traceId; the documented ones must match.
-        foreach (var (name, value) in Contract.Example(Contract.AnalysisNotFound))
-        {
-            Assert.True(JsonNode.DeepEquals(value, result.Body[name]), $"{name}: expected {value}, got {result.Body[name]}");
-        }
+        AssertProblemMatchesExample(Contract.AnalysisNotFound, result);
     }
 
     private async Task<Guid> NewAnalysisAsync() => (await api.PostAnalysisAsync(NewGameRequest())).AnalysisId!.Value;
@@ -122,6 +114,6 @@ public class AnalysisResultTests(ApiFactory api)
             }));
         });
 
-    private static IEnumerable<string> ExplanationTexts(Fetched result) =>
+    private static IEnumerable<string> ExplanationTexts(Answer result) =>
         result.Body["explanations"]!.AsArray().Select(e => e!["text"]!.GetValue<string>());
 }

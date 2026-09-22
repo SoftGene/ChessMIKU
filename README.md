@@ -37,6 +37,16 @@ curl http://localhost:8080/healthz # Healthy
 The API applies database migrations on startup. SQL Server runs in the Express edition and
 listens on `127.0.0.1:1433` only.
 
+The extension registers once with `POST /api/installs` and sends the issued id as
+`X-Install-Id`. Limits live in `backend/ChessReview.Api/appsettings.json`; environment
+variables override them, for example `Quotas__AnalysesPerDay=50`.
+
+| Setting | Default | Limits |
+|---|---|---|
+| `Quotas:AnalysesPerDay` | 20 | analyses a day per installation that need new explanations; answers from the cache are free |
+| `RateLimiting:Registrations` | 5 an hour | registrations per client address |
+| `RateLimiting:Requests` | 60 a minute | requests per installation |
+
 To run the API from Visual Studio against that database, keep the connection string in user
 secrets:
 
