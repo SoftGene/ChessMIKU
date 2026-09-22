@@ -12,18 +12,18 @@ namespace ChessReview.Infrastructure.Tests;
 /// </summary>
 public sealed class SqlServerFixture : IAsyncLifetime
 {
-    private readonly MsSqlContainer _container = SqlServerContainer.Create();
+    private MsSqlContainer? _container;
 
     public async ValueTask InitializeAsync()
     {
-        await _container.StartAsync();
+        _container = await SqlServerContainer.StartAsync();
 
         await using var db = CreateContext();
         await db.Database.MigrateAsync();
     }
 
     public ChessReviewDbContext CreateContext() =>
-        new(new DbContextOptionsBuilder<ChessReviewDbContext>().UseSqlServer(_container.GetConnectionString()).Options);
+        new(new DbContextOptionsBuilder<ChessReviewDbContext>().UseSqlServer(_container!.GetConnectionString()).Options);
 
-    public ValueTask DisposeAsync() => _container.DisposeAsync();
+    public ValueTask DisposeAsync() => _container?.DisposeAsync() ?? ValueTask.CompletedTask;
 }

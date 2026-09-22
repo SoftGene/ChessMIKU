@@ -14,14 +14,14 @@ namespace ChessReview.Api.Tests;
 /// </summary>
 public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
-    private readonly MsSqlContainer _sql = SqlServerContainer.Create();
+    private MsSqlContainer? _sql;
 
     /// <summary>A registered installation, for tests that are not about installations.</summary>
     public Guid InstallId { get; private set; }
 
     public async ValueTask InitializeAsync()
     {
-        await _sql.StartAsync();
+        _sql = await SqlServerContainer.StartAsync();
 
         // Start the host, and so migrate, once before any test runs: the factory is not safe
         // for concurrent first use, and two hosts would race to create the database.
@@ -32,7 +32,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        var connectionString = new SqlConnectionStringBuilder(_sql.GetConnectionString()) { InitialCatalog = "ChessReview" };
+        var connectionString = new SqlConnectionStringBuilder(_sql!.GetConnectionString()) { InitialCatalog = "ChessReview" };
 
         builder.UseSetting("ConnectionStrings:ChessReview", connectionString.ConnectionString);
         builder.UseSetting("Database:MigrateOnStartup", "true");
@@ -47,6 +47,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     public override async ValueTask DisposeAsync()
     {
         await base.DisposeAsync();
-        await _sql.DisposeAsync();
+
+        if (_sql is not null)
+            await _sql.DisposeAsync();
     }
 }
