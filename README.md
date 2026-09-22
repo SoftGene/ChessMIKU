@@ -40,8 +40,10 @@ listens on `127.0.0.1:1433` only.
 Explanations come from Gemini. A background service in the API takes queued analyses one at a
 time and asks the model to explain the three worst errors of the game, with up to three attempts
 each. The model gets only the engine's data: the move, the best move, the evaluations, the class
-and the position in FEN. Get a key in [Google AI Studio](https://aistudio.google.com/apikey); the
-model is `Gemini:Model` in `appsettings.json`.
+and the position in FEN. Get a key in [Google AI Studio](https://aistudio.google.com/apikey). The
+models are `Gemini:Models` in `appsettings.json`, asked in turn: when one is at its limit or
+overloaded, the next one answers. On the free tier each model allows 5 requests a minute and 20 a
+day, so the worker waits 13 seconds between requests.
 
 The extension registers once with `POST /api/installs` and sends the issued id as
 `X-Install-Id`. Limits live in `backend/ChessReview.Api/appsettings.json`; environment
@@ -49,7 +51,7 @@ variables override them, for example `Quotas__AnalysesPerDay=50`.
 
 | Setting | Default | Limits |
 |---|---|---|
-| `Quotas:AnalysesPerDay` | 20 | analyses a day per installation that need new explanations; answers from the cache are free |
+| `Quotas:AnalysesPerDay` | 5 | analyses a day per installation that need new explanations; answers from the cache are free |
 | `RateLimiting:Registrations` | 5 an hour | registrations per client address |
 | `RateLimiting:Requests` | 60 a minute | requests per installation |
 

@@ -4,6 +4,7 @@ using ChessReview.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ChessReview.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ChessReviewDbContext))]
-    partial class ChessReviewDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260922131305_RemoveExplanationCount")]
+    partial class RemoveExplanationCount
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

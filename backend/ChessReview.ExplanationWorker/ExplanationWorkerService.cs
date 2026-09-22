@@ -17,9 +17,9 @@ public sealed class ExplanationWorkerOptions
     [Range(1, 3600)]
     public int IdleSeconds { get; set; } = 5;
 
-    /// <summary>Wait after each job, to stay within the model's requests per minute.</summary>
+    /// <summary>Wait after each job, to stay within the model's requests per minute (5 on the free tier).</summary>
     [Range(0, 3600)]
-    public int SecondsBetweenRequests { get; set; } = 7;
+    public int SecondsBetweenRequests { get; set; } = 13;
 
     /// <summary>Wait after a failed attempt: failures are usually quotas or outages, not one bad job.</summary>
     [Range(1, 3600)]

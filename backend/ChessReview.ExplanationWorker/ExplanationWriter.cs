@@ -62,13 +62,13 @@ public sealed class ExplanationWriter(ChessReviewDbContext db, ILlmClient llm, I
             try
             {
                 var reply = await llm.GenerateJsonAsync(ExplanationPrompt.Build(job.Language, game, plies), cancellationToken);
-                db.Explanations.AddRange(ExplanationPrompt.ParseReply(reply, plies).Select(text => new Explanation
+                db.Explanations.AddRange(ExplanationPrompt.ParseReply(reply.Text, plies).Select(text => new Explanation
                 {
                     GameId = job.GameId,
                     Ply = (short)text.Key,
                     Language = job.Language,
                     Text = text.Value,
-                    Model = llm.Model,
+                    Model = reply.Model,
                 }));
             }
             catch (Exception exception) when (exception is LlmException or HttpRequestException
