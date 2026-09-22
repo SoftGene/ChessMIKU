@@ -22,31 +22,33 @@ public sealed class DailyQuota(ChessReviewDbContext db, TimeProvider time, IOpti
 {
     /// <summary>
     /// Counts one analysis unless the quota for today is used up. Call it inside the transaction
-    /// that stores the analysis, so that a failed request takes its count back.
+    /// that stores the analysis, before the analysis is stored: a failed request takes its count
+    /// back, and every request of an installation locks its count first, then its game, so
+    /// simultaneous requests wait for each other instead of deadlocking.
     /// </summary>
     public async Task<bool> TryCountAsync(Guid installId, CancellationToken cancellationToken)
     {
         var today = Today();
         var limit = options.Value.AnalysesPerDay;
 
+        // Today's row exists before anyone counts. UPDLOCK and HOLDLOCK make simultaneous first
+        // requests of the day wait for one insert instead of colliding on the key.
+        await db.Database.ExecuteSqlAsync(
+            $"""
+            INSERT INTO UsageDaily (InstallId, Date, AnalysisCount, ExplanationCount)
+            SELECT {installId}, {today}, 0, 0
+            WHERE NOT EXISTS (
+                SELECT 1 FROM UsageDaily WITH (UPDLOCK, HOLDLOCK)
+                WHERE InstallId = {installId} AND Date = {today})
+            """,
+            cancellationToken);
+
         // Check and count in one statement: simultaneous requests cannot both take the last analysis.
         var counted = await db.UsageDaily
             .Where(u => u.InstallId == installId && u.Date == today && u.AnalysisCount < limit)
             .ExecuteUpdateAsync(u => u.SetProperty(usage => usage.AnalysisCount, usage => usage.AnalysisCount + 1), cancellationToken);
 
-        if (counted == 1)
-        {
-            return true;
-        }
-
-        if (await db.UsageDaily.AnyAsync(u => u.InstallId == installId && u.Date == today, cancellationToken))
-        {
-            return false;
-        }
-
-        // The first analysis today, saved with the analysis. A simultaneous first one fails to save with a duplicate key.
-        db.UsageDaily.Add(new UsageDaily { InstallId = installId, Date = today, AnalysisCount = 1 });
-        return true;
+        return counted == 1;
     }
 
     /// <summary>Time until the quota resets at 00:00 UTC.</summary>

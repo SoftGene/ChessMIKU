@@ -28,8 +28,7 @@ public sealed class AnalysisService(ChessReviewDbContext db, DailyQuota quota)
         }
         catch (DbUpdateException exception) when (exception.IsDuplicateKey())
         {
-            // A simultaneous request stored the same game, analysis or first count of the day
-            // first: use what it stored.
+            // A simultaneous request stored the same game or analysis first: use what it stored.
             db.ChangeTracker.Clear();
             return await FindOrCreateAsync(installId, request, cancellationToken);
         }
