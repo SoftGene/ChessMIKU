@@ -1,70 +1,92 @@
-import { extractGameInfo, parseGameFromHtml } from './game-source';
+import type { Lookup } from './archive';
+import { FIND_FINISHED_GAME, type FindFinishedGame } from './messages';
+import { parseGamePage, type GamePage } from './page';
 
-// Content script to detect a finished game and add the "Review" button
-console.log('Chess Review content script loaded');
+// Shown by chess.com when a game ends, and on a finished game opened later (seen 22.09.2026).
+// Only a hint to ask again: whether the game is over is decided by the archive of the public API.
+const GAME_OVER = '.game-over-modal-shell-container';
 
-export function isGameFinished(): boolean {
-  return document.querySelector('.game-over-dialog, .game-result-container') !== null;
+// The page is asked about once when it opens. A game that ends while the page is open reaches the
+// archive a little later, so after the game-over dialog appears, ask again after these delays.
+const ASK_AFTER_GAME_OVER_MS = [20_000, 60_000, 180_000];
+
+const BUTTON_ID = 'chess-review-button';
+
+interface Watch {
+  key: string;
+  page: GamePage;
+  asking: boolean;
+  finished: boolean;
+  gameOverSince: number | null;
+  gameOverAsks: number;
 }
 
-async function handleFinishedGame() {
-  console.log('Game is finished, fetching PGN...');
-  
-  const info = extractGameInfo(document, window.location.href);
-  
-  let pgn: string | null = null;
-  
-  // 1. Try background API
+let watch: Watch | null = null;
+
+// chess.com changes games without reloading the page: follow the address and the title.
+setInterval(() => {
   try {
-    const res = await chrome.runtime.sendMessage({ type: 'FETCH_GAME', ...info });
-    if (res && res.pgn) {
-      pgn = res.pgn;
+    tick(Date.now());
+  } catch (error) {
+    console.warn('Chess Review:', error);
+  }
+}, 1000);
+
+function tick(now: number) {
+  const page = parseGamePage(location.href, document.title);
+  const key = page ? `${page.type}/${page.id}` : null;
+
+  if (key !== watch?.key) {
+    document.getElementById(BUTTON_ID)?.remove();
+    watch = page && key ? { key, page, asking: false, finished: false, gameOverSince: null, gameOverAsks: 0 } : null;
+    if (watch) {
+      void ask(watch);
     }
-  } catch (err) {
-    console.error('Error communicating with background script:', err);
+    return;
   }
-  
-  // 2. Fallback to HTML
-  if (!pgn) {
-    console.log('API failed to find game, falling back to HTML parsing...');
-    pgn = parseGameFromHtml(document);
+
+  if (!watch || watch.finished || watch.asking || watch.gameOverAsks >= ASK_AFTER_GAME_OVER_MS.length) {
+    return;
   }
-  
-  if (pgn) {
-    console.log('Successfully found PGN:', pgn.substring(0, 50) + '...');
-    renderButton('Review Game', false);
-  } else {
-    console.warn('Chess Review: Both API and HTML parsing failed to find PGN.');
-    renderButton('Game not found', true);
+
+  if (!document.querySelector(GAME_OVER)) {
+    return;
+  }
+
+  watch.gameOverSince ??= now;
+  if (now >= watch.gameOverSince + ASK_AFTER_GAME_OVER_MS[watch.gameOverAsks]) {
+    watch.gameOverAsks++;
+    void ask(watch);
   }
 }
 
-function renderButton(text: string, disabled: boolean) {
-  // Check if button already exists
-  if (document.querySelector('#chess-review-btn')) return;
-  
-  const btn = document.createElement('button');
-  btn.id = 'chess-review-btn';
-  btn.textContent = text;
-  btn.disabled = disabled;
-  btn.style.cssText = 'position: fixed; bottom: 20px; right: 20px; z-index: 999999; padding: 10px 20px; font-size: 16px; background-color: #7fa650; color: white; border: none; border-radius: 5px; cursor: pointer;';
-  
-  if (disabled) {
-    btn.style.backgroundColor = '#999';
-    btn.style.cursor = 'not-allowed';
-  }
-  
-  document.body.appendChild(btn);
-}
+async function ask(current: Watch) {
+  current.asking = true;
+  try {
+    const request: FindFinishedGame = { type: FIND_FINISHED_GAME, page: current.page };
+    const lookup: Lookup | undefined = await chrome.runtime.sendMessage(request);
 
-if (typeof document !== 'undefined') {
-  // Simple polling to detect when game finishes
-  let gameHandled = false;
-  setInterval(() => {
-    if (!gameHandled && isGameFinished()) {
-      gameHandled = true;
-      handleFinishedGame();
+    // A game in progress is not in the archive: no button, not even a disabled one.
+    if (lookup?.status === 'finished' && watch === current) {
+      current.finished = true;
+      showButton();
     }
-  }, 1000);
+  } catch {
+    // The extension was reloaded or updated: this page keeps an orphaned script until it reloads.
+  } finally {
+    current.asking = false;
+  }
 }
 
+function showButton() {
+  if (document.getElementById(BUTTON_ID)) {
+    return;
+  }
+
+  const button = document.createElement('button');
+  button.id = BUTTON_ID;
+  button.type = 'button';
+  button.textContent = 'Review game';
+  button.style.cssText = 'position: fixed; bottom: 20px; right: 20px; z-index: 999999; padding: 10px 20px; font-size: 16px; background: #7fa650; color: #fff; border: none; border-radius: 5px; cursor: pointer;';
+  document.body.appendChild(button);
+}

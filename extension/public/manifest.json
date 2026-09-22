@@ -1,17 +1,16 @@
 {
   "manifest_version": 3,
   "name": "Chess Review",
-  "version": "1.0",
-  "description": "Free post-game analysis with engine evaluation and AI explanations",
+  "version": "0.1.0",
+  "description": "Free review of your finished games: engine evaluation in your browser and plain-language explanations of the worst moves.",
   "permissions": [],
   "host_permissions": [
-    "*://*.chess.com/*",
-    "http://127.0.0.1:8080/*",
-    "https://*.trycloudflare.com/*"
+    "https://api.chess.com/*",
+    "http://127.0.0.1:8080/*"
   ],
   "content_scripts": [
     {
-      "matches": ["*://*.chess.com/game/*"],
+      "matches": ["https://www.chess.com/game/*", "https://www.chess.com/*/game/*"],
       "js": ["content.js"]
     }
   ],
