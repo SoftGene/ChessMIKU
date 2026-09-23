@@ -5,7 +5,8 @@ import archive from '../test/fixtures/archive-hikaru-2026-08.json';
 import { analyseGame, type MoveEvaluation } from '../src/analysis';
 import { UciEngine, type EngineProcess, type SearchLimit } from '../src/engine';
 
-const LIMITS: SearchLimit[] = [{ movetime: 300 }, { depth: 10 }, { depth: 12 }, { depth: 14 }, { depth: 16 }];
+// The last one is the reference the others are compared with.
+const LIMITS: SearchLimit[] = [{ movetime: 300 }, { depth: 12 }, { depth: 14 }, { depth: 16 }, { depth: 18 }, { depth: 20 }];
 
 interface Result {
   limit: string;
@@ -16,7 +17,9 @@ interface Result {
   longTasks: number;
   longestTaskMs: number;
   maxFrameGapMs: number;
-  sameClassAsDeepest?: string;
+  sameClass?: string;
+  sameVerdict?: string;
+  sameWorstThree?: string;
 }
 
 const games = document.getElementById('game') as HTMLSelectElement;
@@ -40,10 +43,14 @@ async function run(pgn: string) {
     reviews.push(moves);
   }
 
-  const deepest = reviews.at(-1)!.map(roughClass);
+  const reference = reviews.at(-1)!;
+  const referenceWorst = worstThree(reference);
   results.forEach((result, i) => {
-    const same = reviews[i].map(roughClass).filter((c, ply) => c === deepest[ply]).length;
-    result.sameClassAsDeepest = `${same} of ${deepest.length}`;
+    const moves = reviews[i];
+    const agree = (judge: (move: MoveEvaluation) => string) => moves.filter((move, ply) => judge(move) === judge(reference[ply])).length;
+    result.sameClass = `${agree(roughClass)} of ${moves.length}`;
+    result.sameVerdict = `${agree(verdict)} of ${moves.length}`;
+    result.sameWorstThree = `${worstThree(moves).filter((ply) => referenceWorst.includes(ply)).length} of ${referenceWorst.length}`;
   });
   output.textContent = JSON.stringify({ userAgent: navigator.userAgent, cores: navigator.hardwareConcurrency, results }, null, 1);
 }
@@ -112,8 +119,28 @@ function watchMainThread() {
 // the class by expected-points loss, and "best" when the move is the engine's.
 function roughClass(move: MoveEvaluation): string {
   if (move.uci === move.bestMoveUci) return 'best';
-  const loss = Math.max(0, points(move.evalBeforeCp, move.mateBefore) - points(move.evalAfterCp, move.mateAfter));
-  return loss < 0.02 ? 'excellent' : loss < 0.05 ? 'good' : loss < 0.1 ? 'inaccuracy' : loss < 0.2 ? 'mistake' : 'blunder';
+  const lost = loss(move);
+  return lost < 0.02 ? 'excellent' : lost < 0.05 ? 'good' : lost < 0.1 ? 'inaccuracy' : lost < 0.2 ? 'mistake' : 'blunder';
+}
+
+// What the review tells the player: fine (best, excellent, good), or which error.
+function verdict(move: MoveEvaluation): string {
+  const c = roughClass(move);
+  return c === 'best' || c === 'excellent' || c === 'good' ? 'fine' : c;
+}
+
+// The plies the explanations are written for: the three biggest losses (spec section 7).
+function worstThree(moves: MoveEvaluation[]): number[] {
+  return moves
+    .map((move) => ({ ply: move.ply, loss: loss(move) }))
+    .filter(({ loss }) => loss >= 0.05)
+    .sort((a, b) => b.loss - a.loss)
+    .slice(0, 3)
+    .map(({ ply }) => ply);
+}
+
+function loss(move: MoveEvaluation): number {
+  return Math.max(0, points(move.evalBeforeCp, move.mateBefore) - points(move.evalAfterCp, move.mateAfter));
 }
 
 function points(cp: number | null, mate: number | null): number {

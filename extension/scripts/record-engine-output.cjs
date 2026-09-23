@@ -3,7 +3,8 @@
 //   node scripts/record-engine-output.cjs
 'use strict';
 
-const { writeFileSync } = require('node:fs');
+const { copyFileSync, mkdtempSync, writeFileSync } = require('node:fs');
+const { tmpdir } = require('node:os');
 const { join } = require('node:path');
 
 const ENGINE = join(__dirname, '../public/engine/stockfish-19-lite-single.js');
@@ -37,7 +38,11 @@ async function main() {
     },
   };
 
-  await require(ENGINE)()(engine);
+  // The engine script is CommonJS in Node, but extension/package.json makes every .js a module:
+  // load a copy named .cjs. The .wasm comes from public/engine through locateFile.
+  const copy = join(mkdtempSync(join(tmpdir(), 'engine-')), 'stockfish.cjs');
+  copyFileSync(ENGINE, copy);
+  await require(copy)()(engine);
   while (engine._isReady && !engine._isReady()) {
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
