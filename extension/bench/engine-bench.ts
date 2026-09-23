@@ -2,6 +2,7 @@
 // page stays responsive meanwhile, and how often a quicker limit changes a move's class against
 // the deepest one. Spec 15.1, T6.3. Run: npm run bench, then open /bench/engine-bench.html.
 import archive from '../test/fixtures/archive-hikaru-2026-08.json';
+import { Chess } from 'chess.js';
 import { analyseGame, type MoveEvaluation } from '../src/analysis';
 import { UciEngine, type EngineProcess, type SearchLimit } from '../src/engine';
 
@@ -32,6 +33,35 @@ for (const game of archive.games) {
 games.addEventListener('change', () => (pgnInput.value = games.value));
 pgnInput.value = games.value;
 document.getElementById('run')!.addEventListener('click', () => void run(pgnInput.value));
+document.getElementById('parallel')!.addEventListener('click', () => void runParallel(pgnInput.value));
+
+// Several engines at once, each searching the next free position: how the time falls with their number.
+async function runParallel(pgn: string) {
+  const chess = new Chess();
+  chess.loadPgn(pgn);
+  const history = chess.history({ verbose: true });
+  const positions = [history[0].before, ...history.map((move) => move.after)].filter((fen) => new Chess(fen).moves().length > 0);
+  const rows = [];
+  for (const workers of [1, 2, 4, 6, 8]) {
+    output.textContent = `${JSON.stringify(rows, null, 1)}
+Running ${workers} workers…`;
+    const engines = await Promise.all(Array.from({ length: workers }, () => UciEngine.start(startWorker)));
+    await Promise.all(engines.map((engine) => engine.newGame()));
+    const stopWatching = watchMainThread();
+    const started = performance.now();
+    let next = 0;
+    await Promise.all(engines.map(async (engine) => {
+      while (next < positions.length) {
+        await engine.evaluate(positions[next++], { movetime: 300 });
+      }
+    }));
+    const totalS = round((performance.now() - started) / 1000, 1);
+    const health = stopWatching();
+    engines.forEach((engine) => engine.quit());
+    rows.push({ workers, positions: positions.length, limit: 'movetime 300', totalS, ...health });
+  }
+  output.textContent = JSON.stringify({ cores: navigator.hardwareConcurrency, rows }, null, 1);
+}
 
 async function run(pgn: string) {
   const results: Result[] = [];
