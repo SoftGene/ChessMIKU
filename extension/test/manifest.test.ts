@@ -14,6 +14,16 @@ describe('manifest', () => {
     expect(manifest.permissions).toEqual([]);
   });
 
+  // Chrome's default policy for extension pages has no WebAssembly: the engine could not compile
+  // in the panel and stayed silent. This is the most Chrome allows, and only WebAssembly is added.
+  it('lets the panel compile the engine, and nothing more', () => {
+    expect(manifest.content_security_policy).toEqual({ extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';" });
+  });
+
+  it('lets only chess.com pages embed the panel, and nothing else of the extension', () => {
+    expect(manifest.web_accessible_resources).toEqual([{ resources: ['panel.html'], matches: ['https://www.chess.com/*'] }]);
+  });
+
   it('carries no chess.com brand in its name', () => {
     expect(manifest.name).toBe('Chess Review');
   });

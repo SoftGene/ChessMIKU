@@ -4,6 +4,9 @@
   "version": "0.1.0",
   "description": "Free review of your finished games: engine evaluation in your browser and plain-language explanations of the worst moves.",
   "permissions": [],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+  },
   "host_permissions": [
     "https://api.chess.com/*",
     "http://127.0.0.1:8080/*"
@@ -12,6 +15,12 @@
     {
       "matches": ["https://www.chess.com/game/*", "https://www.chess.com/*/game/*"],
       "js": ["content.js"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["panel.html"],
+      "matches": ["https://www.chess.com/*"]
     }
   ],
   "background": {

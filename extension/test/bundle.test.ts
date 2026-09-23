@@ -31,15 +31,43 @@ describe('the built extension', () => {
 
     expect(await read('background.js')).toMatch(network);
     expect(await read('content.js')).not.toMatch(network);
+    expect(await read(await panelScript())).not.toMatch(network);
   });
 
   it('has every file the manifest names', async () => {
     const manifest = JSON.parse(await read('manifest.json'));
-    const files: string[] = [manifest.background.service_worker, ...manifest.content_scripts.flatMap((script: { js: string[] }) => script.js)];
+    const files: string[] = [
+      manifest.background.service_worker,
+      ...manifest.content_scripts.flatMap((script: { js: string[] }) => script.js),
+      ...manifest.web_accessible_resources.flatMap((entry: { resources: string[] }) => entry.resources),
+    ];
 
-    expect(files).toEqual(['background.js', 'content.js']);
+    expect(files).toEqual(['background.js', 'content.js', 'panel.html']);
     for (const file of files) {
       expect((await read(file)).length).toBeGreaterThan(0);
     }
   });
+
+  it('has the panel page and the module script it loads', async () => {
+    const script = await panelScript();
+
+    expect(await read(script)).toMatch(/Analysing position/);
+  });
+
+  it('ships the engine the panel starts, with its license', async () => {
+    const wasm = await readFile(join(dist, 'engine/stockfish-19-lite-single.wasm'));
+
+    expect(await read('engine/stockfish-19-lite-single.js')).toMatch(/Stockfish\.js 19/);
+    expect([...wasm.subarray(0, 4)]).toEqual([0x00, 0x61, 0x73, 0x6d]); // "\0asm"
+    expect(await read('engine/Copying.txt')).toMatch(/GNU GENERAL PUBLIC LICENSE\s+Version 3/);
+    expect(await read(await panelScript())).toContain('engine/stockfish-19-lite-single.js');
+  });
 });
+
+// The script panel.html loads, as a path inside the built extension.
+async function panelScript(): Promise<string> {
+  const html = await read('panel.html');
+  const src = /<script type="module"[^>]*\ssrc="\/?([^"]+)"/.exec(html)?.[1];
+  expect(src, 'panel.html loads no module script').toBeDefined();
+  return src!;
+}
