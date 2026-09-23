@@ -54,6 +54,17 @@ describe('the built extension', () => {
     expect(await read(script)).toMatch(/Analysing position/);
   });
 
+  it('styles the board: chessground with its pieces, and the window', async () => {
+    const html = await read('panel.html');
+    const href = /<link rel="stylesheet"[^>]*href="\/?([^"]+)"/.exec(html)?.[1];
+    expect(href, 'panel.html links no stylesheet').toBeDefined();
+    const css = await read(href!);
+
+    expect(css).toMatch(/cg-board/);
+    expect(css).toMatch(/piece\.pawn\.white/);
+    expect(css).toMatch(/\.eval-bar/);
+  });
+
   it('ships the engine the panel starts, with its license', async () => {
     const wasm = await readFile(join(dist, 'engine/stockfish-19-lite-single.wasm'));
 
