@@ -72,11 +72,12 @@ describe('runReview', () => {
   });
 
   it('says the engine could not start', async () => {
-    const startEngine = () => Promise.reject(new EngineError('The engine could not start: no answer in 20 s'));
+    const startEngine = () => Promise.reject(new EngineError('The engine could not start: no answer in 10 s', 'no answer in 10 s'));
 
     const states = await review(deps({ startEngine }));
 
-    expect(states).toEqual([{ stage: 'looking-up' }, { stage: 'starting-engine' }, { stage: 'engine-failed', reason: 'The engine could not start: no answer in 20 s' }]);
+    // The panel says what failed; the reason is only why.
+    expect(states).toEqual([{ stage: 'looking-up' }, { stage: 'starting-engine' }, { stage: 'engine-failed', reason: 'no answer in 10 s' }]);
   });
 
   it('says the review failed when the engine stops midway, and stops the engine', async () => {

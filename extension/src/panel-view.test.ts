@@ -21,9 +21,9 @@ const rows = () => [...root.querySelectorAll('tbody tr')].map((row) => [...row.q
 
 describe('renderState', () => {
   it('says the engine could not start, and why', () => {
-    renderState(root, { stage: 'engine-failed', reason: 'The engine could not start: no answer in 20 s' });
+    renderState(root, { stage: 'engine-failed', reason: 'no answer in 10 s' });
 
-    expect(root.textContent).toBe('The engine could not start, so there is no review. The chess.com page is not affected. The engine could not start: no answer in 20 s');
+    expect(root.textContent).toBe('The engine could not start, so there is no review. The chess.com page is not affected. Reason: no answer in 10 s.');
   });
 
   it('counts the positions while it analyses', () => {

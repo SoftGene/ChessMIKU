@@ -23,7 +23,7 @@ function describe(state: ReviewState): string {
     case 'starting-engine':
       return 'Starting the engine…';
     case 'engine-failed':
-      return `The engine could not start, so there is no review. The chess.com page is not affected. ${state.reason}`;
+      return `The engine could not start, so there is no review. The chess.com page is not affected. Reason: ${state.reason}.`;
     case 'analysing':
       return `Analysing position ${state.done} of ${state.total}…`;
     case 'done':

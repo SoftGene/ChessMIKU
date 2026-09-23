@@ -11,8 +11,16 @@ export interface EngineProcess {
 
 export type StartProcess = (onLine: (line: string) => void, onFailure: (reason: string) => void) => EngineProcess;
 
+/** The engine failed; `reason` is why, without the sentence around it. */
 export class EngineError extends Error {
   override name = 'EngineError';
+
+  constructor(
+    message: string,
+    readonly reason: string = message,
+  ) {
+    super(message);
+  }
 }
 
 export interface EngineOptions {
@@ -52,7 +60,7 @@ export class UciEngine {
       await engine.ask(['uci'], /^uciok\b/, startTimeoutMs);
       await engine.ask(['isready'], /^readyok\b/, startTimeoutMs);
     } catch {
-      throw new EngineError(`The engine could not start: ${engine.stopped}`);
+      throw new EngineError(`The engine could not start: ${engine.stopped}`, engine.stopped ?? 'unknown');
     }
     return engine;
   }
@@ -81,7 +89,7 @@ export class UciEngine {
 
   private ask(commands: string[], done: RegExp, timeoutMs: number): Promise<string[]> {
     if (this.stopped !== null) {
-      return Promise.reject(new EngineError(`The engine stopped: ${this.stopped}`));
+      return Promise.reject(new EngineError(`The engine stopped: ${this.stopped}`, this.stopped));
     }
 
     return new Promise((resolve, reject) => {
@@ -119,7 +127,7 @@ export class UciEngine {
     this.waiter = null;
     if (waiter) {
       clearTimeout(waiter.timer);
-      waiter.reject(new EngineError(`The engine stopped: ${reason}`));
+      waiter.reject(new EngineError(`The engine stopped: ${reason}`, reason));
     }
   }
 }

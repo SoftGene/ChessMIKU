@@ -61,6 +61,7 @@ describe('UciEngine', () => {
 
     await expect(starting).rejects.toThrow(/could not start: failed to fetch stockfish-19-lite-single\.wasm/);
     await expect(starting).rejects.toBeInstanceOf(EngineError);
+    await expect(starting).rejects.toMatchObject({ reason: 'failed to fetch stockfish-19-lite-single.wasm' });
     expect(engine.state.terminated).toBe(true);
   });
 

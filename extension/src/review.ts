@@ -1,6 +1,6 @@
 import { analyseGame, type MoveEvaluation } from './analysis';
 import type { Lookup } from './archive';
-import type { SearchLimit } from './engine';
+import { EngineError, type SearchLimit } from './engine';
 import type { GamePage } from './page';
 import type { Evaluation } from './uci';
 
@@ -42,7 +42,7 @@ export async function runReview(page: GamePage, deps: ReviewDeps, show: (state: 
     try {
       engine = await deps.startEngine();
     } catch (error) {
-      show({ stage: 'engine-failed', reason: reasonOf(error) });
+      show({ stage: 'engine-failed', reason: error instanceof EngineError ? error.reason : reasonOf(error) });
       return;
     }
 
