@@ -14,6 +14,10 @@ describe('manifest', () => {
     expect(manifest.permissions).toEqual([]);
   });
 
+  it('lets only chess.com pages embed the panel, and nothing else of the extension', () => {
+    expect(manifest.web_accessible_resources).toEqual([{ resources: ['panel.html'], matches: ['https://www.chess.com/*'] }]);
+  });
+
   it('carries no chess.com brand in its name', () => {
     expect(manifest.name).toBe('Chess Review');
   });

@@ -1,5 +1,5 @@
 import type { Lookup } from './archive';
-import { FIND_FINISHED_GAME, type FindFinishedGame } from './messages';
+import { FIND_FINISHED_GAME, panelSearch, type FindFinishedGame } from './messages';
 import { parseGamePage, type GamePage } from './page';
 
 // Shown by chess.com when a game ends, and on a finished game opened later (seen 22.09.2026).
@@ -11,6 +11,7 @@ const GAME_OVER = '.game-over-modal-shell-container';
 const ASK_AFTER_GAME_OVER_MS = [20_000, 60_000, 180_000];
 
 const BUTTON_ID = 'chess-review-button';
+const PANEL_ID = 'chess-review-panel';
 
 interface Watch {
   key: string;
@@ -38,6 +39,7 @@ function tick(now: number) {
 
   if (key !== watch?.key) {
     document.getElementById(BUTTON_ID)?.remove();
+    document.getElementById(PANEL_ID)?.remove();
     watch = page && key ? { key, page, asking: false, finished: false, gameOverSince: null, gameOverAsks: 0 } : null;
     if (watch) {
       void ask(watch);
@@ -69,7 +71,7 @@ async function ask(current: Watch) {
     // A game in progress is not in the archive: no button, not even a disabled one.
     if (lookup?.status === 'finished' && watch === current) {
       current.finished = true;
-      showButton();
+      showButton(current.page);
     }
   } catch {
     // The extension was reloaded or updated: this page keeps an orphaned script until it reloads.
@@ -78,7 +80,7 @@ async function ask(current: Watch) {
   }
 }
 
-function showButton() {
+function showButton(page: GamePage) {
   if (document.getElementById(BUTTON_ID)) {
     return;
   }
@@ -88,5 +90,23 @@ function showButton() {
   button.type = 'button';
   button.textContent = 'Review game';
   button.style.cssText = 'position: fixed; bottom: 20px; right: 20px; z-index: 999999; padding: 10px 20px; font-size: 16px; background: #7fa650; color: #fff; border: none; border-radius: 5px; cursor: pointer;';
+  button.addEventListener('click', () => togglePanel(page));
   document.body.appendChild(button);
+}
+
+// The panel is an extension page in a frame: its worker can run the engine, and the styles of
+// chess.com and of the panel cannot touch each other.
+function togglePanel(page: GamePage) {
+  const open = document.getElementById(PANEL_ID);
+  if (open) {
+    open.remove();
+    return;
+  }
+
+  const frame = document.createElement('iframe');
+  frame.id = PANEL_ID;
+  frame.title = 'Chess Review';
+  frame.src = chrome.runtime.getURL('panel.html') + panelSearch(page);
+  frame.style.cssText = 'position: fixed; top: 80px; right: 20px; width: 420px; height: calc(100vh - 160px); z-index: 999999; border: 1px solid #ccc; border-radius: 8px; background: #fff; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);';
+  document.body.appendChild(frame);
 }
