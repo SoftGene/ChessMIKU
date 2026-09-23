@@ -17,7 +17,7 @@ export function renderState(root: HTMLElement, state: ReviewState): void {
 function describe(state: ReviewState): string {
   switch (state.stage) {
     case 'looking-up':
-      return 'Looking up the game in the chess.com archive…';
+      return 'Looking up the game in the chess.com archive… An older game takes a few seconds.';
     case 'not-found':
       return 'This game is not in the chess.com archive. A game that has just ended appears there within a few minutes.';
     case 'starting-engine':

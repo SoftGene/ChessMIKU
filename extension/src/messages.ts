@@ -1,11 +1,15 @@
 import type { GamePage } from './page';
 
-/** Content script → service worker: is this game finished, and what is its PGN? The answer is a Lookup. */
+/**
+ * Content script or panel → service worker: is this game finished, and what is its PGN? The answer is a
+ * Lookup. `deep`: also search the older archives (the panel asks so; the content script, on every page, not).
+ */
 export const FIND_FINISHED_GAME = 'chess-review/find-finished-game';
 
 export interface FindFinishedGame {
   type: typeof FIND_FINISHED_GAME;
   page: GamePage;
+  deep?: boolean;
 }
 
 const USERNAME = /^[A-Za-z0-9_-]{3,25}$/;
@@ -24,9 +28,10 @@ export function readPanelSearch(search: string): GamePage | null {
 
 // Players come from the page title and end up in an API address: only real usernames pass.
 export function isFindFinishedGame(message: unknown): message is FindFinishedGame {
-  const { type, page } = (message ?? {}) as { type?: unknown; page?: Partial<GamePage> };
+  const { type, page, deep } = (message ?? {}) as { type?: unknown; page?: Partial<GamePage>; deep?: unknown };
 
   return type === FIND_FINISHED_GAME
+    && (deep === undefined || typeof deep === 'boolean')
     && (page?.type === 'live' || page?.type === 'daily')
     && typeof page.id === 'string' && /^\d+$/.test(page.id)
     && Array.isArray(page.players) && page.players.length === 2

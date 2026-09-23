@@ -1,9 +1,10 @@
 import type { Lookup } from './archive';
+import { showsButton } from './button';
 import { FIND_FINISHED_GAME, panelSearch, type FindFinishedGame } from './messages';
 import { parseGamePage, type GamePage } from './page';
 
 // Shown by chess.com when a game ends, and on a finished game opened later (seen 22.09.2026).
-// Only a hint to ask again: whether the game is over is decided by the archive of the public API.
+// A hint to ask again, and for a game older than the recent archives, chess.com's word that it is over.
 const GAME_OVER = '.game-over-modal-shell-container';
 
 // The page is asked about once when it opens. A game that ends while the page is open reaches the
@@ -17,7 +18,8 @@ interface Watch {
   key: string;
   page: GamePage;
   asking: boolean;
-  finished: boolean;
+  lookup: Lookup | undefined;
+  shown: boolean;
   gameOverSince: number | null;
   gameOverAsks: number;
 }
@@ -40,21 +42,27 @@ function tick(now: number) {
   if (key !== watch?.key) {
     document.getElementById(BUTTON_ID)?.remove();
     document.getElementById(PANEL_ID)?.remove();
-    watch = page && key ? { key, page, asking: false, finished: false, gameOverSince: null, gameOverAsks: 0 } : null;
+    watch = page && key ? { key, page, asking: false, lookup: undefined, shown: false, gameOverSince: null, gameOverAsks: 0 } : null;
     if (watch) {
       void ask(watch);
     }
     return;
   }
 
-  if (!watch || watch.finished || watch.asking || watch.gameOverAsks >= ASK_AFTER_GAME_OVER_MS.length) {
+  if (!watch || watch.shown) {
+    return;
+  }
+  const gameOver = document.querySelector(GAME_OVER) !== null;
+  if (showsButton(watch.lookup, gameOver)) {
+    watch.shown = true;
+    showButton(watch.page);
     return;
   }
 
-  if (!document.querySelector(GAME_OVER)) {
+  // An older game waits for the game-over dialog; a game not found asks again once the game is over.
+  if (watch.asking || watch.lookup?.status === 'older' || watch.gameOverAsks >= ASK_AFTER_GAME_OVER_MS.length || !gameOver) {
     return;
   }
-
   watch.gameOverSince ??= now;
   if (now >= watch.gameOverSince + ASK_AFTER_GAME_OVER_MS[watch.gameOverAsks]) {
     watch.gameOverAsks++;
@@ -67,11 +75,13 @@ async function ask(current: Watch) {
   try {
     const request: FindFinishedGame = { type: FIND_FINISHED_GAME, page: current.page };
     const lookup: Lookup | undefined = await chrome.runtime.sendMessage(request);
-
-    // A game in progress is not in the archive: no button, not even a disabled one.
-    if (lookup?.status === 'finished' && watch === current) {
-      current.finished = true;
-      showButton(current.page);
+    if (watch === current && lookup) {
+      current.lookup = lookup;
+      // A game in progress is not in the archive: no button, not even a disabled one (see showsButton).
+      if (!current.shown && showsButton(lookup, document.querySelector(GAME_OVER) !== null)) {
+        current.shown = true;
+        showButton(current.page);
+      }
     }
   } catch {
     // The extension was reloaded or updated: this page keeps an orphaned script until it reloads.
