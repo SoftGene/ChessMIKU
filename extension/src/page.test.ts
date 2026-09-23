@@ -1,5 +1,6 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { parseGamePage, shownAsOver } from './page';
+import { boardOrientation, parseGamePage, shownAsOver } from './page';
 
 // Titles as chess.com set them on 22.09.2026 for a finished game, seen as a guest.
 const ENGLISH_TITLE = 'Chess: Hikaru vs poohineedyou - 173765478164 - Chess.com';
@@ -76,5 +77,23 @@ describe('shownAsOver', () => {
 
   it('is not over on a game page without the dialog', () => {
     expect(shownAsOver('https://www.chess.com/game/live/173765478164', false)).toBe(false);
+  });
+});
+
+describe('boardOrientation', () => {
+  it('is White at the bottom of an ordinary chess.com board', () => {
+    document.body.innerHTML = '<wc-chess-board class="board"></wc-chess-board>';
+    expect(boardOrientation(document)).toBe('white');
+  });
+
+  it('is Black when chess.com has flipped its board', () => {
+    // Seen 23.09.2026: the Flip Board button adds the class on game and analysis pages.
+    document.body.innerHTML = '<wc-chess-board class="board flipped"></wc-chess-board>';
+    expect(boardOrientation(document)).toBe('black');
+  });
+
+  it('is White when the page has no board', () => {
+    document.body.innerHTML = '';
+    expect(boardOrientation(document)).toBe('white');
   });
 });

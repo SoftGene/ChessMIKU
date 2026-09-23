@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { GamePage } from './page';
-import { FIND_FINISHED_GAME, isFindFinishedGame, panelSearch, readPanelSearch } from './messages';
+import { FIND_FINISHED_GAME, isClosePanel, isFindFinishedGame, panelSearch, readOrientation, readPanelSearch } from './messages';
 
 const page = { type: 'live', id: '173765478164', players: ['Hikaru', 'poohineedyou'] };
 
@@ -31,7 +31,11 @@ describe('the address of the panel', () => {
   const game: GamePage = { type: 'live', id: '173765478164', players: ['Hikaru', 'poohineedyou'] };
 
   it('names the game and its players', () => {
-    expect(panelSearch(game)).toBe('?type=live&id=173765478164&players=Hikaru%2Cpoohineedyou');
+    expect(panelSearch(game)).toBe('?type=live&id=173765478164&players=Hikaru%2Cpoohineedyou&orientation=white');
+  });
+
+  it('names the side at the bottom of the board', () => {
+    expect(panelSearch(game, 'black')).toBe('?type=live&id=173765478164&players=Hikaru%2Cpoohineedyou&orientation=black');
   });
 
   it('gives the panel back the same game', () => {
@@ -47,5 +51,25 @@ describe('the address of the panel', () => {
     ['nothing at all', ''],
   ])('names no game with %s', (_, search) => {
     expect(readPanelSearch(search)).toBeNull();
+  });
+});
+
+describe('readOrientation', () => {
+  it('reads Black at the bottom', () => {
+    expect(readOrientation('?type=live&orientation=black')).toBe('black');
+  });
+
+  it.each(['?orientation=white', '', '?orientation=sideways'])('is White otherwise: %j', (search) => {
+    expect(readOrientation(search)).toBe('white');
+  });
+});
+
+describe('isClosePanel', () => {
+  it('knows the request of the panel to close it', () => {
+    expect(isClosePanel({ type: 'chess-review/close' })).toBe(true);
+  });
+
+  it.each([[{ type: 'other' }], [null], ['chess-review/close'], [{}]])('ignores anything else: %j', (data) => {
+    expect(isClosePanel(data)).toBe(false);
   });
 });

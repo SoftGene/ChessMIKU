@@ -46,3 +46,10 @@ export function parseGamePage(url: string, title: string): GamePage | null {
 export function shownAsOver(url: string, gameOverDialog: boolean): boolean {
   return gameOverDialog || ANALYSIS_URL.test(url);
 }
+
+export type Orientation = 'white' | 'black';
+
+/** Which side chess.com shows at the bottom: its board element has the class "flipped" for Black (seen 23.09.2026). */
+export function boardOrientation(root: ParentNode): Orientation {
+  return root.querySelector('wc-chess-board')?.classList.contains('flipped') ? 'black' : 'white';
+}
