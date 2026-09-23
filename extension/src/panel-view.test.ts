@@ -67,6 +67,6 @@ describe('renderState', () => {
     renderState(root, { stage: 'done', moves: FOOLS_MATE });
     renderState(root, { stage: 'looking-up' });
 
-    expect(root.textContent).toBe('Looking up the game in the chess.com archive…');
+    expect(root.textContent).toBe('Looking up the game in the chess.com archive… An older game takes a few seconds.');
   });
 });

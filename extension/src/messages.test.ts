@@ -9,6 +9,10 @@ describe('isFindFinishedGame', () => {
     expect(isFindFinishedGame({ type: FIND_FINISHED_GAME, page })).toBe(true);
   });
 
+  it('accepts a request to search older archives too', () => {
+    expect(isFindFinishedGame({ type: FIND_FINISHED_GAME, page, deep: true })).toBe(true);
+  });
+
   // Players come from the page title: they end up in an API address, so only real usernames pass.
   it.each([
     ['another message', { type: 'other', page }],
@@ -17,6 +21,7 @@ describe('isFindFinishedGame', () => {
     ['a game number with letters', { type: FIND_FINISHED_GAME, page: { ...page, id: '12a' } }],
     ['a path in a username', { type: FIND_FINISHED_GAME, page: { ...page, players: ['../../stats', 'x_y'] } }],
     ['one player', { type: FIND_FINISHED_GAME, page: { ...page, players: ['Hikaru'] } }],
+    ['a search depth that is not true or false', { type: FIND_FINISHED_GAME, page, deep: 'yes' }],
   ])('rejects %s', (_, message) => {
     expect(isFindFinishedGame(message)).toBe(false);
   });

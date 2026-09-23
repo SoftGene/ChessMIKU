@@ -33,7 +33,8 @@ if (page) {
 
 // The service worker is the only part that goes to the network, the panel asks it like the content script does.
 async function lookUp(game: FindFinishedGame['page']): Promise<Lookup> {
-  const request: FindFinishedGame = { type: FIND_FINISHED_GAME, page: game };
+  // Deep: the button may be on an older game, found only in the older archives.
+  const request: FindFinishedGame = { type: FIND_FINISHED_GAME, page: game, deep: true };
   const lookup: Lookup | undefined = await chrome.runtime.sendMessage(request);
   return lookup ?? { status: 'not-found' };
 }
