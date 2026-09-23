@@ -8,7 +8,8 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "build": "vite build --mode background && vite build --mode content"
+    "build": "vite build --mode background && vite build --mode content",
+    "bench": "vite --mode bench"
   },
   "devDependencies": {
     "@types/chrome": "^0.3.0",
