@@ -51,6 +51,30 @@ describe('analyseGame', () => {
     ]);
   });
 
+  it('asks about every position at once and keeps each answer with its position, whatever their order', async () => {
+    const asked: string[] = [];
+    const answers: ((evaluation: Evaluation) => void)[] = [];
+    const evaluate: Evaluate = (fen) => {
+      asked.push(fen);
+      return new Promise((answer) => answers.push(answer));
+    };
+
+    const analysing = analyseGame(FOOLS_MATE, evaluate);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // Several engines can search in parallel only if no search waits for the one before it.
+    expect(asked).toHaveLength(4);
+    for (const i of [3, 1, 0, 2]) {
+      answers[i](FOOLS_MATE_ANSWERS[i]);
+    }
+    expect((await analysing).map((m) => [m.ply, m.bestMoveUci, m.evalBeforeCp ?? `#${m.mateBefore}`])).toEqual([
+      [1, 'e2e4', 30],
+      [2, 'e7e5', 90],
+      [3, 'g1f3', -100],
+      [4, 'd8h4', '#1'],
+    ]);
+  });
+
   it('marks a move that delivers checkmate with mateAfter 0', async () => {
     const { evaluate } = engine(FOOLS_MATE_ANSWERS);
 
