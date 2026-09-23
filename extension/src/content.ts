@@ -115,7 +115,8 @@ window.addEventListener('message', (event) => {
 
 // The panel is an extension page in a frame over the whole page: its worker can run the engine, and the
 // styles of chess.com and of the panel cannot touch each other. "autoplay" lets its sounds play after the
-// click on the button, which happened on this page.
+// click on the button, which happened on this page. The frame has the dark colour scheme of the panel:
+// with another one, Chrome paints the frame opaque and hides the page around the window.
 function togglePanel(page: GamePage) {
   const open = document.getElementById(PANEL_ID);
   if (open) {
@@ -128,7 +129,7 @@ function togglePanel(page: GamePage) {
   frame.title = 'Chess Review';
   frame.allow = 'autoplay';
   frame.src = chrome.runtime.getURL('panel.html') + panelSearch(page, boardOrientation(document));
-  frame.style.cssText = 'position: fixed; inset: 0; width: 100vw; height: 100vh; margin: 0; border: 0; z-index: 2147483647; background: transparent; color-scheme: normal;';
+  frame.style.cssText = 'position: fixed; inset: 0; width: 100vw; height: 100vh; margin: 0; border: 0; z-index: 2147483647; background: transparent; color-scheme: dark;';
   document.body.appendChild(frame);
   frame.focus();
 }

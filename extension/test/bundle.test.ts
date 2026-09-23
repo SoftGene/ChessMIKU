@@ -55,14 +55,20 @@ describe('the built extension', () => {
   });
 
   it('styles the board: chessground with its pieces, and the window', async () => {
-    const html = await read('panel.html');
-    const href = /<link rel="stylesheet"[^>]*href="\/?([^"]+)"/.exec(html)?.[1];
-    expect(href, 'panel.html links no stylesheet').toBeDefined();
-    const css = await read(href!);
+    const css = await read(await panelStylesheet());
 
     expect(css).toMatch(/cg-board/);
     expect(css).toMatch(/piece\.pawn\.white/);
     expect(css).toMatch(/\.eval-bar/);
+  });
+
+  it('lets the chess.com page show through around the window: the frame has the colour scheme of the panel', async () => {
+    // Chrome paints a frame opaque when its colour scheme differs from the one of the page inside (seen 23.09).
+    const schemes = (code: string) => [...code.matchAll(/color-scheme:\s*(\w+)/g)].map((match) => match[1]);
+    const panel = schemes(await read(await panelStylesheet()));
+
+    expect(panel).toHaveLength(1);
+    expect(schemes(await read('content.js'))).toEqual(panel);
   });
 
   it('ships the engine the panel starts, with its license', async () => {
@@ -74,6 +80,14 @@ describe('the built extension', () => {
     expect(await read(await panelScript())).toContain('engine/stockfish-19-lite-single.js');
   });
 });
+
+// The stylesheet panel.html links, as a path inside the built extension.
+async function panelStylesheet(): Promise<string> {
+  const html = await read('panel.html');
+  const href = /<link rel="stylesheet"[^>]*href="\/?([^"]+)"/.exec(html)?.[1];
+  expect(href, 'panel.html links no stylesheet').toBeDefined();
+  return href!;
+}
 
 // The script panel.html loads, as a path inside the built extension.
 async function panelScript(): Promise<string> {
