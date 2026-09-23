@@ -5,6 +5,7 @@ import archive from '../test/fixtures/archive-hikaru-2026-08.json';
 import { analyseGame, type MoveEvaluation } from '../src/analysis';
 import { UciEngine, type EngineProcess, type SearchLimit } from '../src/engine';
 import { EnginePool } from '../src/engine-pool';
+import { readGame } from '../src/game';
 
 // The last one is the reference the others are compared with.
 const LIMITS: SearchLimit[] = [{ movetime: 300 }, { depth: 12 }, { depth: 14 }, { depth: 16 }, { depth: 18 }, { depth: 20 }];
@@ -46,7 +47,7 @@ Running ${size} engines…`;
     await pool.newGame();
     const stopWatching = watchMainThread();
     const started = performance.now();
-    const moves = await analyseGame(pgn, (fen) => pool.evaluate(fen, { movetime: 300 }));
+    const moves = await analyseGame(readGame(pgn), (fen) => pool.evaluate(fen, { movetime: 300 }));
     const totalS = round((performance.now() - started) / 1000, 1);
     const health = stopWatching();
     pool.quit();
@@ -59,7 +60,7 @@ Running ${size} engines…`;
 Running the reference, depth 20…`;
   const pool = await EnginePool.start(() => UciEngine.start(startWorker, { searchTimeoutMs: 120_000 }), 8);
   await pool.newGame();
-  const reference = await analyseGame(pgn, (fen) => pool.evaluate(fen, { depth: 20 }));
+  const reference = await analyseGame(readGame(pgn), (fen) => pool.evaluate(fen, { depth: 20 }));
   pool.quit();
   rows.forEach((row, i) => {
     row.sameVerdict = `${reviews[i].filter((move, ply) => verdict(move) === verdict(reference[ply])).length} of ${reference.length}`;
@@ -95,7 +96,7 @@ async function bench(pgn: string, limit: SearchLimit) {
   const times: number[] = [];
   const stopWatching = watchMainThread();
   const started = performance.now();
-  const moves = await analyseGame(pgn, async (fen) => {
+  const moves = await analyseGame(readGame(pgn), async (fen) => {
     const searchStarted = performance.now();
     const evaluation = await engine.evaluate(fen, limit);
     times.push(performance.now() - searchStarted);

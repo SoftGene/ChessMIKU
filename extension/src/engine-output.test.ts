@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { analyseGame } from './analysis';
 import { UciEngine, type StartProcess } from './engine';
+import { readGame } from './game';
 import { readSearch } from './uci';
 
 // What the real engine printed: scripts/record-engine-output.cjs ran public/engine in Node.
@@ -54,7 +55,7 @@ describe('the recorded output of the real engine', () => {
   it("evaluates fool's mate from the side of each move", async () => {
     const engine = await UciEngine.start(replay);
 
-    const moves = await analyseGame('1. f3 e5 2. g4 Qh4# 0-1', (fen) => engine.evaluate(fen, { depth: 12 }));
+    const moves = await analyseGame(readGame('1. f3 e5 2. g4 Qh4# 0-1'), (fen) => engine.evaluate(fen, { depth: 12 }));
 
     // The start is about level; 1. f3 weakens White; after 2. g4 Black mates in one; Qh4 mates.
     expect(Math.abs(moves[0].evalBeforeCp!)).toBeLessThan(100);

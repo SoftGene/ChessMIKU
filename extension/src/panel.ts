@@ -2,7 +2,7 @@ import type { Lookup } from './archive';
 import { UciEngine, type EngineProcess, type SearchLimit } from './engine';
 import { EnginePool, poolSize } from './engine-pool';
 import { FIND_FINISHED_GAME, readPanelSearch, type FindFinishedGame } from './messages';
-import { renderState } from './panel-view';
+import { statusText } from './status';
 import { runReview } from './review';
 
 // The panel is an extension page inside the chess.com page (the content script embeds it). A worker
@@ -26,9 +26,11 @@ if (page) {
   // Positions are searched by several engines at once: 4 took 6.6 s where 1 took 25.8 s (bench, 23.09).
   const startOne = () => UciEngine.start(startWorker, { startTimeoutMs: START_TIMEOUT_MS });
   const startEngine = () => EnginePool.start(startOne, poolSize(navigator.hardwareConcurrency));
-  void runReview(page, { lookUp, startEngine, limit: SEARCH_LIMIT }, (state) => renderState(root, state));
+  void runReview(page, { lookUp, startEngine, limit: SEARCH_LIMIT }, (state) => {
+    root.textContent = statusText(state);
+  });
 } else {
-  renderState(root, { stage: 'failed', reason: 'The panel opens from the review button on a finished chess.com game.' });
+  root.textContent = statusText({ stage: 'failed', reason: 'The panel opens from the review button on a finished chess.com game.' });
 }
 
 // The service worker is the only part that goes to the network, the panel asks it like the content script does.
