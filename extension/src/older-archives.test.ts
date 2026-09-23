@@ -143,10 +143,47 @@ describe('findFinishedGame and older games', () => {
     expect(asked).not.toContain(LIST);
   });
 
-  it('does not call a game older when the recent archives have no game of its kind to compare with', async () => {
-    const { fetchJson } = api();
+  // Friends who play now and then: neither player has a game in the last two months (Pavel, 23.09).
+  describe('when neither player played lately', () => {
+    const LATER = new Date('2026-12-15T12:00:00Z');
 
-    // In 2026/07 and 2026/06 poohineedyou played no daily game, and closed_account has no archives at all.
-    expect(await findFinishedGame(daily('714066857'), new Date('2026-07-15T12:00:00Z'), fetchJson)).toEqual({ status: 'not-found' });
+    it('compares with the newest archive of a player, and calls an older game older', async () => {
+      const { asked, fetchJson } = api();
+
+      expect(await findFinishedGame(live('110975434041'), LATER, fetchJson)).toEqual({ status: 'older' });
+      expect(asked.filter((url) => /\/games\/\d{4}\/\d{2}$/.test(url) && url.includes('poohineedyou'))).toEqual([
+        'https://api.chess.com/pub/player/poohineedyou/games/2026/12',
+        'https://api.chess.com/pub/player/poohineedyou/games/2026/11',
+        'https://api.chess.com/pub/player/poohineedyou/games/2026/09',
+      ]);
+    });
+
+    it('finds a game that is in that newest archive', async () => {
+      const { fetchJson } = api();
+      const newest = 'https://api.chess.com/pub/player/poohineedyou/games/2026/09';
+      const game = recorded.games.find((g) => g.month === '2026/01')!;
+      const withGame = async (url: string) => (url === newest ? { games: [{ url: game.url, pgn: game.pgn }] } : fetchJson(url));
+
+      const lookup = await findFinishedGame(live('164077125804'), LATER, withGame);
+
+      expect(lookup.status === 'finished' && lookup.pgn).toContain('[Link "https://www.chess.com/game/live/164077125804"]');
+    });
+
+    it('still calls a newer game not found: it is in progress', async () => {
+      const { fetchJson } = api();
+
+      expect(await findFinishedGame(live('185000000000'), LATER, fetchJson, { deep: true })).toEqual({ status: 'not-found' });
+    });
+
+    it('calls a game not found when no archive has a game of its kind to compare with', async () => {
+      const { fetchJson } = api();
+
+      // The same archives without their daily games: nothing to compare a daily game with.
+      const noDaily = async (url: string) => {
+        const answer = (await fetchJson(url)) as { games?: { url: string }[] } | null;
+        return answer?.games ? { games: answer.games.filter((g) => g.url.includes('/live/')) } : answer;
+      };
+      expect(await findFinishedGame(daily('714066857'), LATER, noDaily)).toEqual({ status: 'not-found' });
+    });
   });
 });

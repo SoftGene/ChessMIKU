@@ -69,6 +69,26 @@ export async function findFinishedGame(
     }
   }
 
+  // Neither player had a game of this kind in the recent months (friends who play now and then): the
+  // newest archive of one of them is what to compare with, and may hold the game itself.
+  const checked = recent.map(({ year, month }) => `${year}/${month}`);
+  for (const player of page.players) {
+    if (recentNumbers.length > 0) {
+      break;
+    }
+    const urls = await archiveList(player, checked, fetchJson);
+    const newest = urls?.at(-1);
+    if (newest) {
+      checked.push(newest.slice(-7));
+      const archive = await fetchJson(newest);
+      const pgn = findGame(archive, page);
+      if (pgn !== null) {
+        return { status: 'finished', pgn };
+      }
+      recentNumbers.push(...gameNumbers(archive, page.type));
+    }
+  }
+
   // Only a game older than every game of its kind in the recent archives can be in older ones. A newer
   // game is in progress, or has just ended and is not archived yet; nothing to compare with — unknown.
   if (recentNumbers.length === 0 || Number(page.id) >= Math.min(...recentNumbers)) {
@@ -80,11 +100,10 @@ export async function findFinishedGame(
 
   // Both players have the game in their archives: start with the one who plays less. A month of a
   // player with 2000 games weighs 8 MB, of one with 400 games 1.6 MB (seen 23.09).
-  const skip = recent.map(({ year, month }) => `${year}/${month}`);
   const players = [...page.players].sort((a, b) => (recentGames.get(a) ?? 0) - (recentGames.get(b) ?? 0));
   // If the first has no archives, or an incomplete one (a closed account), the other may have the game.
   for (const player of players) {
-    const pgn = await searchOlderArchives(page, player, skip, fetchJson);
+    const pgn = await searchOlderArchives(page, player, checked, fetchJson);
     if (typeof pgn === 'string') {
       return { status: 'finished', pgn };
     }
@@ -102,12 +121,10 @@ export async function searchOlderArchives(
   skipMonths: string[],
   fetchJson: (url: string) => Promise<unknown>,
 ): Promise<string | null | undefined> {
-  const prefix = `https://api.chess.com/pub/player/${encodeURIComponent(player.toLowerCase())}/games/`;
-  const list = ((await fetchJson(`${prefix}archives`)) as { archives?: unknown } | null)?.archives;
-  if (!Array.isArray(list)) {
+  const urls = await archiveList(player, skipMonths, fetchJson);
+  if (!urls) {
     return undefined;
   }
-  const urls = list.filter((url): url is string => typeof url === 'string' && url.startsWith(prefix) && !skipMonths.includes(url.slice(prefix.length)));
 
   const archives = new Map<number, unknown>();
   const open = async (i: number): Promise<unknown> => {
@@ -168,6 +185,16 @@ export async function searchOlderArchives(
     }
   }
   return null;
+}
+
+/** The addresses of a player's monthly archives, oldest first, without the months to skip; undefined without a list. */
+async function archiveList(player: string, skipMonths: string[], fetchJson: (url: string) => Promise<unknown>): Promise<string[] | undefined> {
+  const prefix = `https://api.chess.com/pub/player/${encodeURIComponent(player.toLowerCase())}/games/`;
+  const list = ((await fetchJson(`${prefix}archives`)) as { archives?: unknown } | null)?.archives;
+  if (!Array.isArray(list)) {
+    return undefined;
+  }
+  return list.filter((url): url is string => typeof url === 'string' && url.startsWith(prefix) && !skipMonths.includes(url.slice(prefix.length)));
 }
 
 /** The numbers of the games of one kind in a monthly archive. */
