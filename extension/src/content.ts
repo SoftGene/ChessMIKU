@@ -1,7 +1,7 @@
 import type { Lookup } from './archive';
 import { showsButton } from './button';
 import { FIND_FINISHED_GAME, panelSearch, type FindFinishedGame } from './messages';
-import { parseGamePage, type GamePage } from './page';
+import { parseGamePage, shownAsOver, type GamePage } from './page';
 
 // Shown by chess.com when a game ends, and on a finished game opened later (seen 22.09.2026).
 // A hint to ask again, and for a game older than the recent archives, chess.com's word that it is over.
@@ -37,7 +37,8 @@ setInterval(() => {
 
 function tick(now: number) {
   const page = parseGamePage(location.href, document.title);
-  const key = page ? `${page.type}/${page.id}` : null;
+  // With the players: an analysis page has the game number only in its address, the title may lag behind.
+  const key = page ? `${page.type}/${page.id}/${page.players.join(',')}` : null;
 
   if (key !== watch?.key) {
     document.getElementById(BUTTON_ID)?.remove();
@@ -52,7 +53,7 @@ function tick(now: number) {
   if (!watch || watch.shown) {
     return;
   }
-  const gameOver = document.querySelector(GAME_OVER) !== null;
+  const gameOver = shownAsOver(location.href, document.querySelector(GAME_OVER) !== null);
   if (showsButton(watch.lookup, gameOver)) {
     watch.shown = true;
     showButton(watch.page);
@@ -78,7 +79,7 @@ async function ask(current: Watch) {
     if (watch === current && lookup) {
       current.lookup = lookup;
       // A game in progress is not in the archive: no button, not even a disabled one (see showsButton).
-      if (!current.shown && showsButton(lookup, document.querySelector(GAME_OVER) !== null)) {
+      if (!current.shown && showsButton(lookup, shownAsOver(location.href, document.querySelector(GAME_OVER) !== null))) {
         current.shown = true;
         showButton(current.page);
       }
