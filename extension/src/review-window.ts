@@ -36,20 +36,20 @@ const LAYOUT = `
       <div class="left">
         <div class="eval-bar"><span class="eval-text"></span></div>
         <div class="board"></div>
+        <svg class="graph" xmlns="http://www.w3.org/2000/svg" aria-label="Evaluation graph"></svg>
+      </div>
+      <div class="right">
+        <div class="moves"></div>
         <nav class="nav">
           <button type="button" class="tool" aria-label="First move">⏮</button>
           <button type="button" class="tool" aria-label="Previous move">◀</button>
           <button type="button" class="tool" aria-label="Next move">▶</button>
           <button type="button" class="tool" aria-label="Last move">⏭</button>
         </nav>
-        <svg class="graph" xmlns="http://www.w3.org/2000/svg" aria-label="Evaluation graph"></svg>
-      </div>
-      <div class="right">
-        <div class="moves"></div>
         <div class="card"></div>
+        <p class="status" role="status"></p>
       </div>
     </div>
-    <p class="status" role="status"></p>
   </section>`;
 
 export function createWindow(root: HTMLElement, handlers: WindowHandlers): WindowParts {

@@ -6,7 +6,12 @@
   --text: #e4dccd;
   --muted: #a2977f;
   --current: #4a3f2e;
-  --board: min(560px, calc(94vh - 250px), 58vw);
+  /* The board takes the height of the browser window, as on chess.com. Around it, from the top: the
+     dimmed page (16px), the window's padding (14px), the header (32px), a gap (12px); below it a gap (8px),
+     the graph (80px), the padding and the page again: 192px in all. Across: the page (32px), the padding
+     (36px), the evaluation bar with its gap (30px), a gap (16px) and the right column (at least 300px). */
+  --board: min(calc(100vh - 192px), calc(100vw - 414px));
+  --side: 420px;
 }
 
 html,
@@ -30,10 +35,10 @@ body {
 
 .window {
   box-sizing: border-box;
-  width: min(1200px, 96vw);
-  height: min(800px, 94vh);
+  width: min(calc(100vw - 32px), calc(var(--board) + 82px + var(--side)));
+  height: calc(100vh - 32px);
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: 32px minmax(0, 1fr);
   gap: 12px;
   padding: 14px 18px;
   border-radius: 12px;
@@ -75,7 +80,7 @@ header {
 
 .main {
   display: grid;
-  grid-template-columns: auto minmax(260px, 1fr);
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 16px;
   min-height: 0;
 }
@@ -131,7 +136,6 @@ header {
 }
 
 .nav {
-  grid-column: 2;
   display: flex;
   justify-content: center;
   gap: 6px;
@@ -169,7 +173,7 @@ header {
 
 .right {
   display: grid;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: minmax(0, 1fr) auto auto auto;
   gap: 12px;
   min-height: 0;
 }
@@ -228,4 +232,8 @@ header {
 
 .no-game .main {
   visibility: hidden;
+}
+
+.no-game .status {
+  visibility: visible;
 }
