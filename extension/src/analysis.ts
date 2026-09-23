@@ -26,30 +26,28 @@ export async function analyseGame(pgn: string, evaluate: Evaluate, onProgress?: 
     return [];
   }
 
+  // Every position is asked at once, so that several engines can search in parallel; the answers
+  // stay with their positions whatever order they come back in.
   const positions = [moves[0].before, ...moves.map((move) => move.after)];
-  const scores: Score[] = [];
-  const bestMoves: string[] = [];
-
-  for (const fen of positions) {
-    const final = finalScore(fen);
-    if (final) {
-      scores.push(final);
-    } else {
-      const evaluation = await evaluate(fen);
-      scores.push(evaluation.score);
-      bestMoves.push(evaluation.bestMoveUci);
-    }
-    onProgress?.(scores.length, positions.length);
-  }
+  let done = 0;
+  const evaluations = await Promise.all(
+    positions.map(async (fen): Promise<{ score: Score; bestMoveUci?: string }> => {
+      const final = finalScore(fen);
+      const evaluation = final ? { score: final } : await evaluate(fen);
+      onProgress?.(++done, positions.length);
+      return evaluation;
+    }),
+  );
 
   return moves.map((move, i) => {
-    const before = scores[i];
-    const after = flip(scores[i + 1]);
+    const before = evaluations[i].score;
+    const after = flip(evaluations[i + 1].score);
     return {
       ply: i + 1,
       san: move.san,
       uci: move.lan,
-      bestMoveUci: bestMoves[i],
+      // A move was played from this position, so it had moves and the engine searched it.
+      bestMoveUci: evaluations[i].bestMoveUci!,
       evalBeforeCp: 'cp' in before ? before.cp : null,
       mateBefore: 'mate' in before ? before.mate : null,
       evalAfterCp: 'cp' in after ? after.cp : null,

@@ -1,5 +1,6 @@
 import type { Lookup } from './archive';
 import { UciEngine, type EngineProcess, type SearchLimit } from './engine';
+import { EnginePool, poolSize } from './engine-pool';
 import { FIND_FINISHED_GAME, readPanelSearch, type FindFinishedGame } from './messages';
 import { renderState } from './panel-view';
 import { runReview } from './review';
@@ -22,7 +23,9 @@ const root = document.getElementById('review')!;
 const page = readPanelSearch(location.search);
 
 if (page) {
-  const startEngine = () => UciEngine.start(startWorker, { startTimeoutMs: START_TIMEOUT_MS });
+  // Positions are searched by several engines at once: 4 took 6.6 s where 1 took 25.8 s (bench, 23.09).
+  const startOne = () => UciEngine.start(startWorker, { startTimeoutMs: START_TIMEOUT_MS });
+  const startEngine = () => EnginePool.start(startOne, poolSize(navigator.hardwareConcurrency));
   void runReview(page, { lookUp, startEngine, limit: SEARCH_LIMIT }, (state) => renderState(root, state));
 } else {
   renderState(root, { stage: 'failed', reason: 'The panel opens from the review button on a finished chess.com game.' });

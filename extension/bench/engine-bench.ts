@@ -2,9 +2,9 @@
 // page stays responsive meanwhile, and how often a quicker limit changes a move's class against
 // the deepest one. Spec 15.1, T6.3. Run: npm run bench, then open /bench/engine-bench.html.
 import archive from '../test/fixtures/archive-hikaru-2026-08.json';
-import { Chess } from 'chess.js';
 import { analyseGame, type MoveEvaluation } from '../src/analysis';
 import { UciEngine, type EngineProcess, type SearchLimit } from '../src/engine';
+import { EnginePool } from '../src/engine-pool';
 
 // The last one is the reference the others are compared with.
 const LIMITS: SearchLimit[] = [{ movetime: 300 }, { depth: 12 }, { depth: 14 }, { depth: 16 }, { depth: 18 }, { depth: 20 }];
@@ -35,31 +35,35 @@ pgnInput.value = games.value;
 document.getElementById('run')!.addEventListener('click', () => void run(pgnInput.value));
 document.getElementById('parallel')!.addEventListener('click', () => void runParallel(pgnInput.value));
 
-// Several engines at once, each searching the next free position: how the time falls with their number.
+// A pool of engines, as the panel runs it (src/panel.ts): how the time falls with their number.
 async function runParallel(pgn: string) {
-  const chess = new Chess();
-  chess.loadPgn(pgn);
-  const history = chess.history({ verbose: true });
-  const positions = [history[0].before, ...history.map((move) => move.after)].filter((fen) => new Chess(fen).moves().length > 0);
-  const rows = [];
-  for (const workers of [1, 2, 4, 6, 8]) {
+  const rows: Record<string, unknown>[] = [];
+  const reviews: MoveEvaluation[][] = [];
+  for (const size of [1, 2, 3, 4, 6, 8]) {
     output.textContent = `${JSON.stringify(rows, null, 1)}
-Running ${workers} workers…`;
-    const engines = await Promise.all(Array.from({ length: workers }, () => UciEngine.start(startWorker)));
-    await Promise.all(engines.map((engine) => engine.newGame()));
+Running ${size} engines…`;
+    const pool = await EnginePool.start(() => UciEngine.start(startWorker), size);
+    await pool.newGame();
     const stopWatching = watchMainThread();
     const started = performance.now();
-    let next = 0;
-    await Promise.all(engines.map(async (engine) => {
-      while (next < positions.length) {
-        await engine.evaluate(positions[next++], { movetime: 300 });
-      }
-    }));
+    const moves = await analyseGame(pgn, (fen) => pool.evaluate(fen, { movetime: 300 }));
     const totalS = round((performance.now() - started) / 1000, 1);
     const health = stopWatching();
-    engines.forEach((engine) => engine.quit());
-    rows.push({ workers, positions: positions.length, limit: 'movetime 300', totalS, ...health });
+    pool.quit();
+    rows.push({ engines: pool.size, plies: moves.length, limit: 'movetime 300', totalS, ...health });
+    reviews.push(moves);
   }
+
+  // The reference, depth 20, searched by eight engines to save time: a fixed depth barely depends on that.
+  output.textContent = `${JSON.stringify(rows, null, 1)}
+Running the reference, depth 20…`;
+  const pool = await EnginePool.start(() => UciEngine.start(startWorker, { searchTimeoutMs: 120_000 }), 8);
+  await pool.newGame();
+  const reference = await analyseGame(pgn, (fen) => pool.evaluate(fen, { depth: 20 }));
+  pool.quit();
+  rows.forEach((row, i) => {
+    row.sameVerdict = `${reviews[i].filter((move, ply) => verdict(move) === verdict(reference[ply])).length} of ${reference.length}`;
+  });
   output.textContent = JSON.stringify({ cores: navigator.hardwareConcurrency, rows }, null, 1);
 }
 
