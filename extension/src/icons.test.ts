@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { classColor, glyphBox, moveIcon, squareMark } from './icons';
+import { classColor, glyphBox, mateMark, moveIcon, squareMark } from './icons';
 
 // The classes the backend sends, as the contract lists them.
 const contract = readFileSync(join(import.meta.dirname, '../../contracts/api.yaml'), 'utf8');
@@ -65,6 +65,31 @@ describe('icons', () => {
   it('measures no marks for a class drawn otherwise', () => {
     expect(glyphBox('best')).toBeNull();
     expect(glyphBox('<script>')).toBeNull();
+  });
+
+  it('lets every mark pop up, and rings the notable ones in their colour', () => {
+    for (const cls of ['blunder', 'best', 'great', 'brilliant']) {
+      expect(squareMark(cls)).toContain(`class="mark-ring" cx="12" cy="12" r="11" fill="none" stroke="${classColor(cls)}"`);
+    }
+    for (const cls of ['excellent', 'good', 'book', 'inaccuracy', 'mistake', 'miss']) {
+      expect(squareMark(cls)).not.toContain('mark-ring');
+    }
+    expect(squareMark('mistake')).toContain('<g class="mark-pop"');
+  });
+
+  it('carries the position in the mark, so that the board draws it anew on each move', () => {
+    expect(squareMark('best', 'fen-a')).toContain('data-at="fen-a"');
+    expect(squareMark('best', 'fen-a')).not.toBe(squareMark('best', 'fen-b'));
+  });
+
+  it('marks a mate: # on the mated king, a crown on the winner, both ringed', () => {
+    expect(mateMark('mated')).toMatch(/^<g transform="translate\(60 -4\) scale\(1\.75\)">/);
+    expect(mateMark('mated')).toContain('fill="#2f2a24"');
+    expect(mateMark('mated')).toContain('data-mark="hash"');
+    expect(mateMark('winner')).toContain('fill="#d9a93b"');
+    expect(mateMark('winner')).toContain('data-mark="crown"');
+    expect([mateMark('mated'), mateMark('winner')].every((mark) => mark.includes('mark-ring'))).toBe(true);
+    expect(mateMark('winner', 'fen-a')).toContain('data-at="fen-a"');
   });
 
   it('puts the mark in the top right corner of a square of 100 × 100', () => {
