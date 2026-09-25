@@ -32,15 +32,21 @@ export function describeLine(fen: string, line: EngineLine): { san: string; valu
   return { san, value: evalText(toWhiteEval(line.score, sideToMove(fen))) };
 }
 
-/** The bar in the line: the best line's evaluation; a mate or a stalemate on the board needs no engine. */
-export function lineEval(fen: string, ending: Ending, lines: EngineLine[] | null | undefined): WhiteEval | undefined {
+/**
+ * The bar in the line: the best line's evaluation; a mate or a stalemate on the board needs no engine. While the
+ * engine thinks, the value shown before (`held`) stays: the bar does not drop to the middle and jump back.
+ */
+export function lineEval(fen: string, ending: Ending, lines: EngineLine[] | null | undefined, held?: WhiteEval): WhiteEval | undefined {
   if (ending === 'checkmate') {
     return { mateIn: 0, winner: sideToMove(fen) === 'w' ? 'black' : 'white' };
   }
   if (ending === 'stalemate') {
     return { cp: 0 };
   }
-  return lines?.[0] ? toWhiteEval(lines[0].score, sideToMove(fen)) : undefined;
+  if (lines?.[0]) {
+    return toWhiteEval(lines[0].score, sideToMove(fen));
+  }
+  return lines === undefined ? held : undefined;
 }
 
 /** What the row tells: the end of the game first, then nothing when hints are off, then the engine. */

@@ -35,6 +35,15 @@ describe('lineEval', () => {
   });
 });
 
+describe('lineEval while the engine thinks', () => {
+  it('holds the value shown while the engine thinks, and not when it is unavailable', () => {
+    expect(lineEval(START, null, undefined, { cp: 40 })).toEqual({ cp: 40 });
+    expect(lineEval(START, null, null, { cp: 40 })).toBeUndefined();
+    expect(lineEval(AFTER_E4, null, [{ moveUci: 'c7c5', score: { cp: 30 } }], { cp: 40 })).toEqual({ cp: -30 });
+    expect(lineEval('7k/5Q2/6K1/8/8/8/8/8 b - - 0 1', 'stalemate', undefined, { cp: 40 })).toEqual({ cp: 0 });
+  });
+});
+
 describe('linesState', () => {
   it('says what the row tells about the engine', () => {
     expect(linesState(null, TWO, true)).toEqual({ kind: 'lines', lines: TWO });

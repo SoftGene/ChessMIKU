@@ -17,7 +17,7 @@ import { graphTip, graphX, positionAtX, renderGraph } from './eval-graph';
 import { fenAt, type Game, type Ply } from './game';
 import { renderKeyMoments } from './key-moments';
 import { readLanguage, writeLanguage } from './language';
-import { endingOf, legalDests, readDrop } from './legal-moves';
+import { endingOf, legalDests, mateSquares, readDrop } from './legal-moves';
 import { createLineEngine } from './line-engine';
 import { lineEval, linesState, renderLine } from './line-view';
 import { CLOSE_PANEL, FIND_FINISHED_GAME, readOrientation, readPanelSearch, type FindFinishedGame } from './messages';
@@ -67,6 +67,8 @@ let place: Place = { ply: 0, line: null };
 // The review is over: the player may move pieces.
 let playable = false;
 let promotion: PromotionChoice | null = null;
+// The value the evaluation bar shows: held while the engine of the line thinks.
+let barValue: WhiteEval | undefined;
 const evals: (WhiteEval | undefined)[] = [];
 const bestMoves: (string | undefined)[] = [];
 const classes = new Map<number, string>();
@@ -277,10 +279,12 @@ function render(animate: boolean) {
       mark: place.line && place.line.at > 0 ? undefined : classes.get(place.ply),
       hint: squares(best),
       second: squares(place.line ? lines?.[1]?.moveUci : undefined),
+      mate: mateSquares(fen) ?? undefined,
     },
     { animate, hints, movable: playable && !promotion ? { color: sideToMove(fen) === 'w' ? 'white' : 'black', dests: legalDests(fen) } : null },
   );
-  renderEvalBar(parts.evalBar, place.line ? lineEval(fen, ending, lines) : evals[place.ply], orientation);
+  barValue = place.line ? lineEval(fen, ending, lines, barValue) : evals[place.ply];
+  renderEvalBar(parts.evalBar, barValue, orientation);
   markCurrentMove(parts.moves, place.ply);
   showHeaders(parts, game.headers, place.line ? fenAt(game, place.ply).split(' ')[5] : null);
   parts.line.hidden = !place.line;

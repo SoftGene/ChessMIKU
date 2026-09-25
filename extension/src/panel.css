@@ -102,7 +102,8 @@ header {
 }
 
 /* White's share grows from the bottom (from the top when Black is at the bottom); scaled, not resized,
-   so the replay's ten updates a second do not lay the page out again. */
+   so the replay's ten updates a second do not lay the page out again. It glides and slows down at the end; a new
+   value takes the movement up from where the bar is (Pavel, after T7.2: it jumped). */
 .eval-bar::after {
   content: '';
   position: absolute;
@@ -110,7 +111,7 @@ header {
   background: #efe9dc;
   transform: scaleY(var(--white-share));
   transform-origin: bottom;
-  transition: transform 120ms linear;
+  transition: transform 400ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .eval-bar.flipped::after {
@@ -495,4 +496,55 @@ header {
 
 .line-move[aria-current='true'] {
   background: var(--current);
+}
+
+/* A mark of a class, or of a mate, pops up when its move is shown: chessground draws it anew then (icons.ts). */
+.mark-pop {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mark-pop 250ms ease-out both;
+}
+
+@keyframes mark-pop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* The notable ones ring: a circle of their colour spreads out and fades. */
+.mark-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+  animation: mark-ring 500ms ease-out;
+}
+
+@keyframes mark-ring {
+  from {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mark-pop,
+  .mark-ring {
+    animation: none;
+  }
+
+  .eval-bar::after {
+    transition: none;
+  }
 }
