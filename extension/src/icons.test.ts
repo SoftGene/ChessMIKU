@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { classColor, moveIcon, squareMark } from './icons';
+import { classColor, glyphBox, moveIcon, squareMark } from './icons';
 
 // The classes the backend sends, as the contract lists them.
 const contract = readFileSync(join(import.meta.dirname, '../../contracts/api.yaml'), 'utf8');
@@ -24,10 +24,38 @@ describe('icons', () => {
     expect(moveIcon('blunder')).toContain('aria-label="Blunder"');
   });
 
-  it('draws the chess.com symbols players know', () => {
-    expect(moveIcon('blunder')).toContain('>??</text>');
-    expect(moveIcon('mistake')).toContain('>?</text>');
-    expect(moveIcon('inaccuracy')).toContain('>?!</text>');
+  it.each(['inaccuracy', 'mistake', 'blunder'])('draws the marks of %s as tall as the others, centred in the circle', (cls) => {
+    const box = glyphBox(cls)!;
+    const single = glyphBox('mistake')!;
+
+    expect([box.top, box.bottom]).toEqual([single.top, single.bottom]);
+    expect((box.left + box.right) / 2).toBeCloseTo(12, 1);
+    expect(Math.abs((box.top + box.bottom) / 2 - 12)).toBeLessThan(0.1);
+  });
+
+  it('draws ?! as a question mark and an exclamation mark, ?? as two question marks, and types none', () => {
+    const marks = (cls: string) => [...moveIcon(cls)!.matchAll(/data-mark="(\w+)"/g)].map((m) => m[1]);
+
+    expect(marks('inaccuracy')).toEqual(['question', 'exclaim']);
+    expect(marks('mistake')).toEqual(['question']);
+    expect(marks('blunder')).toEqual(['question', 'question']);
+    expect(moveIcon('blunder')).not.toContain('<text');
+  });
+
+  it('draws the marks where it measures them', () => {
+    expect(moveIcon('mistake')).toContain('d="M9.5 9.3');
+    expect(moveIcon('blunder')).toContain('d="M5.5 9.3');
+    expect(moveIcon('blunder')).toContain('d="M13.5 9.3');
+    expect(moveIcon('inaccuracy')).toContain('d="M16.2 6.8v7.2"');
+  });
+
+  it('gives the book its spine', () => {
+    expect(moveIcon('book')).toContain('d="M12 8.3v8.4"');
+  });
+
+  it('measures no marks for a class drawn otherwise', () => {
+    expect(glyphBox('best')).toBeNull();
+    expect(glyphBox('<script>')).toBeNull();
   });
 
   it('puts the mark in the top right corner of a square of 100 × 100', () => {

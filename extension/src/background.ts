@@ -3,10 +3,14 @@ import { fetchJson, findFinishedGame, type Lookup } from './archive';
 import { isAnalyseMessage, isExplanationsMessage } from './backend-messages';
 import { serveBackend, type BackendDeps } from './backend-service';
 import { isFindFinishedGame } from './messages';
+import { fetchPlayerInfo, isPlayerInfoMessage, NO_INFO, type PlayerInfo } from './player-info';
 
 // Games found in an archive, by type and number: the panel asks again right after the page did, and a
 // search in older archives takes several seconds. Lives as long as the service worker.
 const found = new Map<string, string>();
+
+// The players' avatars and titles, by username: asked once while the service worker lives.
+const players = new Map<string, Promise<PlayerInfo>>();
 
 // The installation id lives in the extension's storage, which outlives the service worker.
 const backend: BackendDeps = {
@@ -32,6 +36,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse: (answer: un
   }
   if (isExplanationsMessage(message)) {
     answer(serveBackend(message, backend), sendResponse);
+    return true;
+  }
+  if (isPlayerInfoMessage(message)) {
+    const key = message.username.toLowerCase();
+    if (!players.has(key)) {
+      players.set(key, fetchPlayerInfo(message.username, fetchJson));
+    }
+    players.get(key)!.then(sendResponse, () => sendResponse(NO_INFO));
     return true;
   }
   if (!isFindFinishedGame(message)) {

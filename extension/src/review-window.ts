@@ -17,12 +17,14 @@ export interface WindowParts {
   board: HTMLElement;
   evalBar: HTMLElement;
   graph: SVGSVGElement;
+  graphTip: HTMLElement;
   moves: HTMLElement;
   card: HTMLElement;
   status: HTMLElement;
   hints: HTMLButtonElement;
   sound: HTMLButtonElement;
   languages: HTMLButtonElement[];
+  players: { white: HTMLElement; black: HTMLElement };
 }
 
 // Our own markup, no data in it: players, moves and texts are set as text afterwards.
@@ -44,9 +46,16 @@ const LAYOUT = `
       <div class="left">
         <div class="eval-bar"><span class="eval-text"></span></div>
         <div class="board"></div>
-        <svg class="graph" xmlns="http://www.w3.org/2000/svg" aria-label="Evaluation graph"></svg>
+        <div class="graph-wrap">
+          <svg class="graph" xmlns="http://www.w3.org/2000/svg" aria-label="Evaluation graph"></svg>
+          <div class="graph-tip" hidden></div>
+        </div>
       </div>
       <div class="right">
+        <div class="players">
+          <div class="player" data-color="white"><span class="avatar"></span><span class="player-name"></span><span class="player-rating"></span><strong class="accuracy">—</strong><span class="accuracy-label">Accuracy</span></div>
+          <div class="player" data-color="black"><span class="avatar"></span><span class="player-name"></span><span class="player-rating"></span><strong class="accuracy">—</strong><span class="accuracy-label">Accuracy</span></div>
+        </div>
         <div class="moves"></div>
         <nav class="nav">
           <button type="button" class="tool" aria-label="First move">⏮</button>
@@ -94,12 +103,17 @@ export function createWindow(root: HTMLElement, handlers: WindowHandlers): Windo
     board: root.querySelector('.board')!,
     evalBar: root.querySelector('.eval-bar')!,
     graph: root.querySelector<SVGSVGElement>('svg.graph')!,
+    graphTip: root.querySelector('.graph-tip')!,
     moves: root.querySelector('.moves')!,
     card: root.querySelector('.card')!,
     status: root.querySelector('.status')!,
     hints: button('Hints'),
     sound: button('Sound'),
     languages,
+    players: {
+      white: root.querySelector('.player[data-color="white"]')!,
+      black: root.querySelector('.player[data-color="black"]')!,
+    },
   };
 }
 
@@ -110,11 +124,9 @@ export function showLanguage(parts: WindowParts, language: Language): void {
   }
 }
 
-/** "White (elo) – Black (elo) · result · date", as text: names come from the PGN. */
+/** "result · date", as text; the players have a block of their own (players.ts). */
 export function showHeaders(parts: WindowParts, headers: GameHeaders): void {
-  const player = (name: string, elo: string | null) => (elo ? `${name} (${elo})` : name);
-  const pieces = [`${player(headers.white, headers.whiteElo)} – ${player(headers.black, headers.blackElo)}`, headers.result, headers.date].filter(Boolean);
-  parts.title.textContent = pieces.join(' · ');
+  parts.title.textContent = [headers.result, headers.date].filter(Boolean).join(' · ');
 }
 
 export function setPressed(button: HTMLButtonElement, on: boolean): void {

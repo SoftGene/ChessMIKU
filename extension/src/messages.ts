@@ -12,7 +12,7 @@ export interface FindFinishedGame {
   deep?: boolean;
 }
 
-const USERNAME = /^[A-Za-z0-9_-]{3,25}$/;
+export const USERNAME = /^[A-Za-z0-9_-]{3,25}$/;
 
 /** The query of the panel's address: the panel is an extension page and learns its game from it. */
 export function panelSearch(page: GamePage, orientation: Orientation = 'white'): string {

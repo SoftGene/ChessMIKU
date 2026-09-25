@@ -141,8 +141,13 @@ header {
   gap: 6px;
 }
 
-.graph {
+.graph-wrap {
   grid-column: 1 / -1;
+  position: relative;
+}
+
+.graph {
+  display: block;
   width: 100%;
   height: 80px;
   border-radius: 6px;
@@ -150,9 +155,35 @@ header {
   cursor: pointer;
 }
 
+/* Drawn over the area, dashed, so that it shows on the light side and on the dark one. */
 .graph-mid {
-  stroke: #4a4235;
+  stroke: #8a7a5c;
   stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+
+.graph-hover {
+  stroke: #e4dccd;
+  stroke-width: 1;
+  opacity: 0.6;
+}
+
+.graph-mark {
+  stroke: #17140f;
+  stroke-width: 1;
+}
+
+.graph-tip {
+  position: absolute;
+  top: -28px;
+  transform: translateX(-50%);
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .graph-area {
@@ -173,7 +204,7 @@ header {
 
 .right {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
   gap: 12px;
   min-height: 0;
 }
@@ -296,4 +327,88 @@ header {
   margin: 4px 6px 8px;
   line-height: 1.5;
   color: var(--text);
+}
+
+.players {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.player {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  grid-template-areas: 'avatar name' 'avatar rating' 'accuracy accuracy' 'label label';
+  column-gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.avatar {
+  grid-area: avatar;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--surface-2);
+  font-weight: 700;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.player-name {
+  grid-area: name;
+  align-self: end;
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.player-title {
+  padding: 0 3px;
+  border-radius: 3px;
+  background: #7c2929;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.player-rating {
+  grid-area: rating;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.accuracy {
+  grid-area: accuracy;
+  justify-self: center;
+  margin-top: 8px;
+  padding: 2px 12px;
+  border-radius: 6px;
+  font-size: 20px;
+}
+
+.player[data-color='white'] .accuracy {
+  background: #efe9dc;
+  color: #17140f;
+}
+
+.player[data-color='black'] .accuracy {
+  background: #3a342a;
+  color: var(--text);
+}
+
+.accuracy-label {
+  grid-area: label;
+  justify-self: center;
+  color: var(--muted);
+  font-size: 11px;
 }

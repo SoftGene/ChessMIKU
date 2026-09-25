@@ -33,10 +33,12 @@ describe('the review window', () => {
   it('has a place for every part', () => {
     const parts = createWindow(root, handlers);
 
-    for (const part of [parts.board, parts.evalBar, parts.graph, parts.moves, parts.card, parts.status, parts.title, parts.hints, parts.sound]) {
+    for (const part of [parts.board, parts.evalBar, parts.graph, parts.graphTip, parts.moves, parts.card, parts.status, parts.title, parts.hints, parts.sound]) {
       expect(root.contains(part)).toBe(true);
     }
     expect(parts.graph.namespaceURI).toBe('http://www.w3.org/2000/svg');
+    expect(parts.graphTip.hidden).toBe(true);
+    expect([parts.players.white.dataset.color, parts.players.black.dataset.color]).toEqual(['white', 'black']);
   });
 
   it('closes with its close button', () => {
@@ -76,13 +78,14 @@ describe('the review window', () => {
     expect([handlers.flip, handlers.toggleHints, handlers.toggleSound].map((h) => h.mock.calls.length)).toEqual([1, 1, 1]);
   });
 
-  it('names the players, their ratings, the result and the date, as text', () => {
+  it('names the result and the date in its header: the players have a block of their own', () => {
     const parts = createWindow(root, handlers);
 
-    showHeaders(parts, { white: 'Hikaru', black: '<b>x</b>', whiteElo: '3370', blackElo: null, result: '1-0', date: '2026.08.30' });
+    showHeaders(parts, { white: 'Hikaru', black: 'poohineedyou', whiteElo: '3370', blackElo: null, result: '1-0', date: '2026.08.30' });
+    expect(parts.title.textContent).toBe('1-0 · 2026.08.30');
 
-    expect(parts.title.textContent).toBe('Hikaru (3370) – <b>x</b> · 1-0 · 2026.08.30');
-    expect(parts.title.querySelector('b')).toBeNull();
+    showHeaders(parts, { white: 'Hikaru', black: 'poohineedyou', whiteElo: null, blackElo: null, result: '*', date: null });
+    expect(parts.title.textContent).toBe('*');
   });
 
   it('switches the language of the explanations', () => {

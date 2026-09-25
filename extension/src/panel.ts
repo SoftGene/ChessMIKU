@@ -2,6 +2,7 @@ import 'chessground/assets/chessground.base.css';
 import 'chessground/assets/chessground.brown.css';
 import 'chessground/assets/chessground.cburnett.css';
 import './panel.css';
+import { gameAccuracy } from './accuracy';
 import type { PositionEvaluation } from './analysis';
 import type { Lookup } from './archive';
 import type { AnalyseAnswer, AnalyseMessage, ExplanationsAnswer, ExplanationsMessage, Language, MoveClassification } from './backend-messages';
@@ -12,11 +13,13 @@ import { EnginePool, poolSize } from './engine-pool';
 import { renderEvalBar } from './eval-bar';
 import { createEvalCache, type CacheStore } from './eval-cache';
 import { sideToMove, toWhiteEval, type WhiteEval } from './eval-display';
-import { positionAtX, renderGraph } from './eval-graph';
+import { graphTip, graphX, positionAtX, renderGraph } from './eval-graph';
 import { fenAt, type Game } from './game';
 import { renderKeyMoments } from './key-moments';
 import { readLanguage, writeLanguage } from './language';
 import { CLOSE_PANEL, FIND_FINISHED_GAME, readOrientation, readPanelSearch, type FindFinishedGame } from './messages';
+import { isPlayerInfoMessage, NO_INFO, PLAYER_INFO, readPlayerInfo, type PlayerInfo, type PlayerInfoMessage } from './player-info';
+import { renderPlayer, type PlayerView } from './players';
 import { buildMoveList, markCurrentMove, setMoveClasses } from './move-list';
 import { keyAction, navigate, type NavAction } from './navigation';
 import { startReplay } from './replay';
@@ -61,6 +64,12 @@ const bestMoves: (string | undefined)[] = [];
 const classes = new Map<number, string>();
 let replay: { stop(): void } | null = null;
 let card: CardState = { kind: 'waiting-engine' };
+// The position under the pointer on the graph, while it is there.
+let hover: number | null = null;
+const players: Record<'white' | 'black', PlayerView> = {
+  white: { name: '', rating: null, info: null, accuracy: null },
+  black: { name: '', rating: null, info: null, accuracy: null },
+};
 
 // The server: classes and explanations. The panel asks the service worker, which alone goes to the network.
 const backend = createBackendReview(
@@ -87,6 +96,27 @@ document.addEventListener('keydown', (event) => {
   } else {
     go(action);
   }
+});
+
+// The graph is drawn in the pixels it has, so that its dots stay round: again when its size changes.
+new ResizeObserver(() => drawGraph()).observe(parts.graph);
+
+parts.graph.addEventListener('mousemove', (event) => {
+  if (!game) {
+    return;
+  }
+  hover = positionAtX(event.offsetX, parts.graph.clientWidth, game.plies.length);
+  const tip = graphTip(game, evals, hover);
+  parts.graphTip.hidden = tip === null;
+  parts.graphTip.textContent = tip ?? '';
+  parts.graphTip.style.left = `${graphX(hover, game.plies.length, parts.graph.clientWidth)}px`;
+  drawGraph();
+});
+
+parts.graph.addEventListener('mouseleave', () => {
+  hover = null;
+  parts.graphTip.hidden = true;
+  drawGraph();
 });
 
 parts.graph.addEventListener('click', (event) => {
@@ -137,6 +167,7 @@ function onState(state: ReviewState, externalGameId: string) {
       state.positions.forEach((evaluation, index) => record(index, evaluation));
       show(state.game.plies.length, false);
     }
+    showAccuracy(state.game);
     void backend.start({ externalGameId, pgn: state.pgn, moves: state.moves });
   }
   if ((state.stage === 'not-found' || state.stage === 'failed') && !game) {
@@ -148,6 +179,7 @@ function begin(started: Game, withReplay: boolean) {
   game = started;
   evals.length = started.plies.length + 1;
   showHeaders(parts, started.headers);
+  showPlayers(started);
   buildMoveList(parts.moves, started, select);
   show(0, false);
   if (withReplay) {
@@ -178,7 +210,7 @@ function record(index: number, evaluation: PositionEvaluation) {
   }
   evals[index] = toWhiteEval(evaluation.score, sideToMove(fenAt(game, index)));
   bestMoves[index] = evaluation.bestMoveUci;
-  renderGraph(parts.graph, evals, ply, classes);
+  drawGraph();
   if (index === ply) {
     show(ply, false);
   }
@@ -212,8 +244,40 @@ function show(at: number, animate: boolean) {
   );
   renderEvalBar(parts.evalBar, evals[at], orientation);
   markCurrentMove(parts.moves, at);
-  renderGraph(parts.graph, evals, at, classes);
+  drawGraph();
   renderCard();
+}
+
+function drawGraph() {
+  renderGraph(parts.graph, evals, ply, classes, { width: parts.graph.clientWidth, height: parts.graph.clientHeight }, hover);
+}
+
+// The players from the PGN at once; their avatars and titles when the service worker has them.
+function showPlayers(started: Game) {
+  for (const color of ['white', 'black'] as const) {
+    players[color] = { name: started.headers[color], rating: started.headers[color === 'white' ? 'whiteElo' : 'blackElo'], info: null, accuracy: null };
+    renderPlayer(parts.players[color], players[color]);
+    const message: PlayerInfoMessage = { type: PLAYER_INFO, username: players[color].name };
+    if (isPlayerInfoMessage(message)) {
+      void askPlayer(message).then((info) => {
+        players[color].info = info;
+        renderPlayer(parts.players[color], players[color]);
+      });
+    }
+  }
+}
+
+// The accuracy of both players, once every position is evaluated.
+function showAccuracy(finished: Game) {
+  const known = evals.filter((value): value is WhiteEval => value !== undefined);
+  if (known.length !== finished.plies.length + 1) {
+    return;
+  }
+  const accuracy = gameAccuracy(known, sideToMove(finished.startFen));
+  for (const color of ['white', 'black'] as const) {
+    players[color].accuracy = accuracy[color];
+    renderPlayer(parts.players[color], players[color]);
+  }
 }
 
 function showCard(state: CardState) {
@@ -301,6 +365,15 @@ async function ask(message: AnalyseMessage | ExplanationsMessage): Promise<Analy
     return (await chrome.runtime.sendMessage(message)) ?? { status: 'unreachable' };
   } catch {
     return { status: 'unreachable' };
+  }
+}
+
+// The picture is checked again here: only chess.com's image server goes into the window.
+async function askPlayer(message: PlayerInfoMessage): Promise<PlayerInfo> {
+  try {
+    return readPlayerInfo(await chrome.runtime.sendMessage(message));
+  } catch {
+    return NO_INFO;
   }
 }
 
