@@ -9,9 +9,9 @@ describe('manifest', () => {
     ]);
   });
 
-  it('reaches only the chess.com API and the local backend', () => {
+  it('reaches only the chess.com API and the local backend, and keeps its data in its own storage', () => {
     expect(manifest.host_permissions).toEqual(['https://api.chess.com/*', 'http://127.0.0.1:8080/*']);
-    expect(manifest.permissions).toEqual([]);
+    expect(manifest.permissions).toEqual(['storage']);
   });
 
   // Chrome's default policy for extension pages has no WebAssembly: the engine could not compile
