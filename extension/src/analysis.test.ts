@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import archive from '../test/fixtures/archive-hikaru-2026-08.json';
-import { analyseGame, type Evaluate } from './analysis';
+import { analyseGame, movesFrom, type Evaluate, type PositionEvaluation } from './analysis';
 import { readGame } from './game';
 import type { Evaluation } from './uci';
 
@@ -168,5 +168,17 @@ describe('analyseGame', () => {
     const evaluate: Evaluate = () => Promise.reject(new Error('The engine stopped.'));
 
     await expect(analyseGame(FOOLS_MATE, evaluate)).rejects.toThrow('The engine stopped.');
+  });
+});
+
+describe('movesFrom', () => {
+  it('rebuilds the moves from the evaluations of the positions, as the analysis gives them', async () => {
+    const game = readGame('1. f3 e5 2. g4 Qh4# 0-1');
+    const positions: PositionEvaluation[] = [];
+    const moves = await analyseGame(game, async (fen) => ({ bestMoveUci: 'e2e4', score: { cp: fen.length % 50 } }), (index, evaluation) => {
+      positions[index] = evaluation;
+    });
+
+    expect(movesFrom(game, positions)).toEqual(moves);
   });
 });

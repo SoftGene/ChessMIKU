@@ -3,7 +3,7 @@
   "name": "Chess Review",
   "version": "0.1.0",
   "description": "Free review of your finished games: engine evaluation in your browser and plain-language explanations of the worst moves.",
-  "permissions": [],
+  "permissions": ["storage"],
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
   },

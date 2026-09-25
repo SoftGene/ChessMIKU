@@ -16,7 +16,13 @@ const EXTENSION_PAGES_POLICY: string = manifest.content_security_policy?.extensi
 //   pages, so the engine runs under the same rules as in the panel.
 export default defineConfig(({ mode }) =>
   mode === 'bench'
-    ? { server: { headers: { 'Content-Security-Policy': EXTENSION_PAGES_POLICY } } }
+    ? {
+        server: {
+          headers: { 'Content-Security-Policy': EXTENSION_PAGES_POLICY },
+          // The panel harness reaches the local backend (docker compose) through this server: same origin, no CORS.
+          proxy: { '/api': 'http://127.0.0.1:8080' },
+        },
+      }
     : mode === 'content'
     ? {
         publicDir: false,

@@ -4,19 +4,24 @@ import 'chessground/assets/chessground.cburnett.css';
 import './panel.css';
 import type { PositionEvaluation } from './analysis';
 import type { Lookup } from './archive';
+import type { AnalyseAnswer, AnalyseMessage, ExplanationsAnswer, ExplanationsMessage, Language, MoveClassification } from './backend-messages';
+import { createBackendReview, type CardState } from './backend-review';
 import { createBoard } from './board-view';
 import { UciEngine, type EngineProcess, type SearchLimit } from './engine';
 import { EnginePool, poolSize } from './engine-pool';
 import { renderEvalBar } from './eval-bar';
+import { createEvalCache, type CacheStore } from './eval-cache';
 import { sideToMove, toWhiteEval, type WhiteEval } from './eval-display';
 import { positionAtX, renderGraph } from './eval-graph';
 import { fenAt, type Game } from './game';
+import { renderKeyMoments } from './key-moments';
+import { readLanguage, writeLanguage } from './language';
 import { CLOSE_PANEL, FIND_FINISHED_GAME, readOrientation, readPanelSearch, type FindFinishedGame } from './messages';
 import { buildMoveList, markCurrentMove, setMoveClasses } from './move-list';
 import { keyAction, navigate, type NavAction } from './navigation';
 import { startReplay } from './replay';
 import { runReview, type ReviewState } from './review';
-import { createWindow, setPressed, showHeaders } from './review-window';
+import { createWindow, setPressed, showHeaders, showLanguage } from './review-window';
 import { readSetting, writeSetting } from './settings';
 import { createSounds, soundOf } from './sounds';
 import { statusText } from './status';
@@ -28,6 +33,7 @@ const ENGINE_URL = 'engine/stockfish-19-lite-single.js';
 
 // How long the engine searches each position (spec 15.1, measured 23.09 in bench/engine-bench.html).
 // A fixed time gives a known duration; a fixed depth was no closer to depth 20 in its verdicts.
+// The evaluation cache keys its games by these settings (eval-cache.ts, ENGINE_TAG).
 const SEARCH_LIMIT: SearchLimit = { movetime: 300 };
 
 // The engine is ready in about 0.1 s. Without its .wasm it does not fail, it stays silent: only this
@@ -36,15 +42,16 @@ const START_TIMEOUT_MS = 10_000;
 
 const page = readPanelSearch(location.search);
 let orientation = readOrientation(location.search);
-const parts = createWindow(document.getElementById('review')!, { close, flip, toggleHints, toggleSound, navigate: go });
+const parts = createWindow(document.getElementById('review')!, { close, flip, toggleHints, toggleSound, navigate: go, setLanguage });
 const board = createBoard(parts.board, orientation);
 const sounds = createSounds();
 let hints = readSetting('hints');
 let soundOn = readSetting('sound');
+let language = readLanguage(navigator.languages);
 sounds.setEnabled(soundOn);
 setPressed(parts.hints, hints);
 setPressed(parts.sound, soundOn);
-parts.card.textContent = 'Move classes and explanations are not available yet: the server is not connected.';
+showLanguage(parts, language);
 parts.root.querySelector<HTMLElement>('.window')?.focus();
 
 let game: Game | null = null;
@@ -53,6 +60,21 @@ const evals: (WhiteEval | undefined)[] = [];
 const bestMoves: (string | undefined)[] = [];
 const classes = new Map<number, string>();
 let replay: { stop(): void } | null = null;
+let card: CardState = { kind: 'waiting-engine' };
+
+// The server: classes and explanations. The panel asks the service worker, which alone goes to the network.
+const backend = createBackendReview(
+  { analyse: ask, explanations: ask, wait: (ms) => new Promise((resolve) => setTimeout(resolve, ms)), now: () => Date.now() },
+  { classes: showClassifications, card: showCard },
+  language,
+);
+
+// The engine's evaluations of games reviewed before: opening one again needs neither the archive nor the engine.
+const cacheStore: CacheStore = {
+  get: (keys) => chrome.storage.local.get(keys),
+  set: (items) => chrome.storage.local.set(items),
+  remove: (keys) => chrome.storage.local.remove(keys),
+};
 
 document.addEventListener('keydown', (event) => {
   const action = keyAction(event.key);
@@ -75,17 +97,19 @@ parts.graph.addEventListener('click', (event) => {
 });
 
 if (page) {
+  const externalGameId = `${page.type}/${page.id}`;
   // Positions are searched by several engines at once: 4 took 6.6 s where 1 took 25.8 s (bench, 23.09).
   const startOne = () => UciEngine.start(startWorker, { startTimeoutMs: START_TIMEOUT_MS });
   const startEngine = () => EnginePool.start(startOne, poolSize(navigator.hardwareConcurrency));
-  void runReview(page, { lookUp, startEngine, limit: SEARCH_LIMIT }, onState);
+  const deps = { lookUp, startEngine, limit: SEARCH_LIMIT, cache: createEvalCache(cacheStore) };
+  void runReview(page, deps, (state) => onState(state, externalGameId));
 } else {
   parts.root.classList.add('no-game');
   parts.status.textContent = 'The panel opens from the review button on a finished chess.com game.';
 }
 
-/** The classes of the moves, from the backend (T7.3). */
-export function showClassifications(list: { ply: number; classification: string }[]): void {
+/** The classes of the moves, from the backend. */
+export function showClassifications(list: MoveClassification[]): void {
   for (const { ply: at, classification } of list) {
     classes.set(at, classification);
   }
@@ -95,43 +119,57 @@ export function showClassifications(list: { ply: number; classification: string 
   }
 }
 
-function onState(state: ReviewState) {
+function onState(state: ReviewState, externalGameId: string) {
   parts.status.textContent = statusText(state);
   if ('game' in state && !game) {
-    begin(state.game);
+    // A game opened from the store is shown at its last move at once, without the replay.
+    begin(state.game, state.stage !== 'done');
   }
   if (state.stage === 'analysing') {
     record(state.index, state.evaluation);
   }
   if (state.stage === 'engine-failed') {
     stopReplay();
+    showCard({ kind: 'no-engine' });
+  }
+  if (state.stage === 'done') {
+    if (state.cached) {
+      state.positions.forEach((evaluation, index) => record(index, evaluation));
+      show(state.game.plies.length, false);
+    }
+    void backend.start({ externalGameId, pgn: state.pgn, moves: state.moves });
   }
   if ((state.stage === 'not-found' || state.stage === 'failed') && !game) {
     parts.root.classList.add('no-game');
   }
 }
 
-function begin(started: Game) {
+function begin(started: Game, withReplay: boolean) {
   game = started;
   evals.length = started.plies.length + 1;
   showHeaders(parts, started.headers);
-  buildMoveList(parts.moves, started, (at) => {
-    stopReplay();
-    show(at, true);
-    playMoveSound(at);
-  });
+  buildMoveList(parts.moves, started, select);
   show(0, false);
-  replay = startReplay({
-    last: started.plies.length,
-    isReady: (at) => evaluatedUpTo() >= at,
-    show: (at) => {
-      show(at, true);
-      void sounds.play('tick');
-    },
-    done: () => {
-      replay = null;
-    },
-  });
+  if (withReplay) {
+    replay = startReplay({
+      last: started.plies.length,
+      isReady: (at) => evaluatedUpTo() >= at,
+      show: (at) => {
+        show(at, true);
+        void sounds.play('tick');
+      },
+      done: () => {
+        replay = null;
+      },
+    });
+  }
+}
+
+// A click on a move or on a key moment: the board goes there.
+function select(at: number) {
+  stopReplay();
+  show(at, true);
+  playMoveSound(at);
 }
 
 function record(index: number, evaluation: PositionEvaluation) {
@@ -175,6 +213,18 @@ function show(at: number, animate: boolean) {
   renderEvalBar(parts.evalBar, evals[at], orientation);
   markCurrentMove(parts.moves, at);
   renderGraph(parts.graph, evals, at, classes);
+  renderCard();
+}
+
+function showCard(state: CardState) {
+  card = state;
+  renderCard();
+}
+
+function renderCard() {
+  if (game) {
+    renderKeyMoments(parts.card, card, { language, game, classes, current: ply, onSelect: select });
+  }
 }
 
 function playMoveSound(at: number) {
@@ -224,12 +274,34 @@ function toggleSound() {
   setPressed(parts.sound, soundOn);
 }
 
+function setLanguage(next: Language) {
+  if (next === language) {
+    return;
+  }
+  language = next;
+  writeLanguage(language);
+  showLanguage(parts, language);
+  renderCard();
+  void backend.setLanguage(language);
+}
+
 // The service worker is the only part that goes to the network; the panel asks it like the content script does.
 async function lookUp(target: FindFinishedGame['page']): Promise<Lookup> {
   // Deep: the button may be on an older game, found only in the older archives.
   const request: FindFinishedGame = { type: FIND_FINISHED_GAME, page: target, deep: true };
   const lookup: Lookup | undefined = await chrome.runtime.sendMessage(request);
   return lookup ?? { status: 'not-found' };
+}
+
+// The service worker answers for the server; no answer (the extension was reloaded) is an unreachable server.
+function ask(message: AnalyseMessage): Promise<AnalyseAnswer>;
+function ask(message: ExplanationsMessage): Promise<ExplanationsAnswer>;
+async function ask(message: AnalyseMessage | ExplanationsMessage): Promise<AnalyseAnswer | ExplanationsAnswer> {
+  try {
+    return (await chrome.runtime.sendMessage(message)) ?? { status: 'unreachable' };
+  } catch {
+    return { status: 'unreachable' };
+  }
 }
 
 function startWorker(onLine: (line: string) => void, onFailure: (reason: string) => void): EngineProcess {

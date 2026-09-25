@@ -48,15 +48,20 @@ export async function analyseGame(game: Game, evaluate: Evaluate, onPosition?: O
     }),
   );
 
+  return movesFrom(game, evaluations);
+}
+
+/** The moves of a game with their evaluations, from the evaluation of each of its positions (0 is the start). */
+export function movesFrom(game: Game, positions: readonly PositionEvaluation[]): MoveEvaluation[] {
   return game.plies.map((ply, i) => {
-    const before = evaluations[i].score;
-    const after = flip(evaluations[i + 1].score);
+    const before = positions[i].score;
+    const after = flip(positions[i + 1].score);
     return {
       ply: ply.ply,
       san: ply.san,
       uci: ply.uci,
       // A move was played from this position, so it had moves and the engine searched it.
-      bestMoveUci: evaluations[i].bestMoveUci!,
+      bestMoveUci: positions[i].bestMoveUci!,
       evalBeforeCp: 'cp' in before ? before.cp : null,
       mateBefore: 'mate' in before ? before.mate : null,
       evalAfterCp: 'cp' in after ? after.cp : null,

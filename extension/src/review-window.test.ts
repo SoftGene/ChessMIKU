@@ -1,15 +1,30 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import type { Language } from './backend-messages';
 import type { NavAction } from './navigation';
-import { createWindow, setPressed, showHeaders } from './review-window';
+import { createWindow, setPressed, showHeaders, showLanguage } from './review-window';
 
 let root: HTMLElement;
-let handlers: { close: Mock<() => void>; flip: Mock<() => void>; toggleHints: Mock<() => void>; toggleSound: Mock<() => void>; navigate: Mock<(action: NavAction) => void> };
+let handlers: {
+  close: Mock<() => void>;
+  flip: Mock<() => void>;
+  toggleHints: Mock<() => void>;
+  toggleSound: Mock<() => void>;
+  navigate: Mock<(action: NavAction) => void>;
+  setLanguage: Mock<(language: Language) => void>;
+};
 
 beforeEach(() => {
   document.body.innerHTML = '<div id="review" class="backdrop"></div>';
   root = document.getElementById('review')!;
-  handlers = { close: vi.fn(), flip: vi.fn(), toggleHints: vi.fn(), toggleSound: vi.fn(), navigate: vi.fn<(action: NavAction) => void>() };
+  handlers = {
+    close: vi.fn(),
+    flip: vi.fn(),
+    toggleHints: vi.fn(),
+    toggleSound: vi.fn(),
+    navigate: vi.fn<(action: NavAction) => void>(),
+    setLanguage: vi.fn<(language: Language) => void>(),
+  };
 });
 
 const click = (selector: string) => root.querySelector<HTMLElement>(selector)!.click();
@@ -68,6 +83,24 @@ describe('the review window', () => {
 
     expect(parts.title.textContent).toBe('Hikaru (3370) – <b>x</b> · 1-0 · 2026.08.30');
     expect(parts.title.querySelector('b')).toBeNull();
+  });
+
+  it('switches the language of the explanations', () => {
+    createWindow(root, handlers);
+
+    expect(root.querySelectorAll('button[data-language]')).toHaveLength(3);
+    click('button[data-language="cs"]');
+    click('button[data-language="en"]');
+
+    expect(handlers.setLanguage.mock.calls).toEqual([['cs'], ['en']]);
+  });
+
+  it('marks the language chosen', () => {
+    const parts = createWindow(root, handlers);
+
+    showLanguage(parts, 'cs');
+
+    expect(parts.languages.map((button) => [button.textContent, button.getAttribute('aria-pressed')])).toEqual([['RU', 'false'], ['CS', 'true'], ['EN', 'false']]);
   });
 
   it('shows whether a switch is on', () => {
