@@ -87,6 +87,33 @@ describe('UciEngine', () => {
     expect(evaluation).toEqual({ bestMoveUci: 'e2e4', score: { cp: 30 } });
   });
 
+  it('sets an option and waits until the engine is ready again', async () => {
+    const engine = fakeProcess();
+    const uci = await UciEngine.start(engine.start);
+
+    await uci.setOption('MultiPV', 2);
+
+    expect(engine.sent.slice(2)).toEqual(['setoption name MultiPV value 2', 'isready']);
+  });
+
+  it('reports every line of a search with several', async () => {
+    const lines = [
+      'info depth 9 seldepth 12 multipv 1 score cp 30 nodes 9000 time 280 pv e2e4 e7e5',
+      'info depth 9 seldepth 11 multipv 2 score cp 22 nodes 9000 time 280 pv d2d4',
+      'bestmove e2e4 ponder e7e5',
+    ];
+    const engine = fakeProcess((command) => (command.startsWith('go ') ? lines : standard(command)));
+    const uci = await UciEngine.start(engine.start);
+
+    const found = await uci.evaluateLines('8/8/8/8/8/8/8/K6k w - - 0 1', { movetime: 500 });
+
+    expect(engine.sent.slice(2)).toEqual(['position fen 8/8/8/8/8/8/8/K6k w - - 0 1', 'go movetime 500']);
+    expect(found).toEqual([
+      { moveUci: 'e2e4', score: { cp: 30 } },
+      { moveUci: 'd2d4', score: { cp: 22 } },
+    ]);
+  });
+
   it('searches a position to the given depth', async () => {
     const engine = fakeProcess();
     const uci = await UciEngine.start(engine.start);

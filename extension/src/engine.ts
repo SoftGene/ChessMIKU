@@ -1,4 +1,4 @@
-import { readSearch, type Evaluation } from './uci';
+import { readLines, readSearch, type EngineLine, type Evaluation } from './uci';
 
 /** How long the engine searches one position. */
 export type SearchLimit = { movetime: number } | { depth: number };
@@ -27,6 +27,8 @@ export interface EngineOptions {
   startTimeoutMs?: number;
   searchTimeoutMs?: number;
 }
+
+const goCommand = (limit: SearchLimit) => ('movetime' in limit ? `go movetime ${limit.movetime}` : `go depth ${limit.depth}`);
 
 interface Waiter {
   done: RegExp;
@@ -72,8 +74,19 @@ export class UciEngine {
   }
 
   evaluate(fen: string, limit: SearchLimit): Promise<Evaluation> {
-    const go = 'movetime' in limit ? `go movetime ${limit.movetime}` : `go depth ${limit.depth}`;
-    return this.enqueue(async () => readSearch(await this.ask([`position fen ${fen}`, go], /^bestmove\b/, this.searchTimeoutMs)));
+    return this.enqueue(async () => readSearch(await this.ask([`position fen ${fen}`, goCommand(limit)], /^bestmove\b/, this.searchTimeoutMs)));
+  }
+
+  /** Sets a UCI option (MultiPV for the player's line) and waits until the engine is ready again. */
+  setOption(name: string, value: string | number): Promise<void> {
+    return this.enqueue(async () => {
+      await this.ask([`setoption name ${name} value ${value}`, 'isready'], /^readyok\b/, this.startTimeoutMs);
+    });
+  }
+
+  /** Searches a position and reports each of its lines, best first (`setOption('MultiPV', n)` sets how many). */
+  evaluateLines(fen: string, limit: SearchLimit): Promise<EngineLine[]> {
+    return this.enqueue(async () => readLines(await this.ask([`position fen ${fen}`, goCommand(limit)], /^bestmove\b/, this.searchTimeoutMs)));
   }
 
   quit(): void {
