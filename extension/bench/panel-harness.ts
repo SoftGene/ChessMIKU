@@ -80,5 +80,8 @@ if (query.get('classes') === 'sample') {
     { ply: 6, classification: 'good' },
     { ply: 7, classification: 'blunder' },
     { ply: 8, classification: 'miss' },
+    // Not in the contract yet: the backend is to give them after v1.
+    { ply: 9, classification: 'great' },
+    { ply: 10, classification: 'brilliant' },
   ]);
 }
