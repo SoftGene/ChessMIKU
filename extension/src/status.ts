@@ -14,7 +14,7 @@ export function statusText(state: ReviewState): string {
     case 'analysing':
       return `Analysing position ${state.done} of ${state.total}…`;
     case 'done':
-      return `Analysed ${state.moves.length} moves.`;
+      return `Analysed ${state.moves.length} moves${state.cached ? ' (saved in this browser)' : ''}.`;
     case 'failed':
       return `The review failed. ${state.reason}`;
   }

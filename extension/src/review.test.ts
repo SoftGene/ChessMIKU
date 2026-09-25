@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
+import { movesFrom } from './analysis';
 import { EngineError } from './engine';
+import type { CachedGame, EvalCache } from './eval-cache';
 import type { GamePage } from './page';
 import { runReview, type ReviewDeps, type ReviewEngine, type ReviewState } from './review';
 
@@ -118,5 +120,63 @@ describe('runReview', () => {
     const states = await review(deps({ lookUp }));
 
     expect(states).toEqual([{ stage: 'looking-up' }, { stage: 'failed', reason: 'Could not establish connection. Receiving end does not exist.' }]);
+  });
+});
+
+function memoryCache(entries: Record<string, CachedGame> = {}) {
+  const saved: Record<string, CachedGame> = { ...entries };
+  const cache: EvalCache = { read: async (id) => saved[id] ?? null, write: async (id, game) => void (saved[id] = game) };
+  return { saved, cache };
+}
+
+describe('runReview with the evaluation cache', () => {
+  it('ends with the game, its PGN and the evaluation of every position', async () => {
+    const states = await review(deps());
+
+    expect(states.at(-1)).toMatchObject({ stage: 'done', pgn: FOOLS_MATE, cached: false, positions: expect.any(Array) });
+    const last = states.at(-1);
+    expect(last?.stage === 'done' && last.positions.map((p) => p.score)).toEqual([{ cp: 10 }, { cp: 10 }, { cp: 10 }, { cp: 10 }, { mate: 0 }]);
+  });
+
+  it('saves the evaluated game for the next time', async () => {
+    const { saved, cache } = memoryCache();
+
+    await review(deps({ cache }));
+
+    expect(saved['live/173765478164']).toMatchObject({ pgn: FOOLS_MATE, positions: expect.any(Array) });
+    expect(saved['live/173765478164'].positions).toHaveLength(5);
+  });
+
+  it('shows a saved game at once, without the archive or the engine', async () => {
+    const first = memoryCache();
+    await review(deps({ cache: first.cache }));
+    const lookUp = vi.fn();
+    const startEngine = vi.fn();
+
+    const states = await review(deps({ cache: memoryCache(first.saved).cache, lookUp, startEngine }));
+
+    expect(stages(states)).toEqual(['looking-up', 'done']);
+    const done = states.at(-1);
+    expect(done).toMatchObject({ stage: 'done', cached: true, pgn: FOOLS_MATE });
+    expect(done?.stage === 'done' && done.moves).toEqual(done?.stage === 'done' && movesFrom(done.game, done.positions));
+    expect(lookUp).not.toHaveBeenCalled();
+    expect(startEngine).not.toHaveBeenCalled();
+  });
+
+  it('reviews anew when the saved evaluations do not fit the game', async () => {
+    const { cache } = memoryCache({ 'live/173765478164': { pgn: FOOLS_MATE, positions: [{ score: { cp: 1 } }] } });
+
+    const states = await review(deps({ cache }));
+
+    expect(stages(states)).toContain('starting-engine');
+    expect(states.at(-1)).toMatchObject({ stage: 'done', cached: false });
+  });
+
+  it('reviews as before when the store fails', async () => {
+    const cache: EvalCache = { read: () => Promise.reject(new Error('quota')), write: () => Promise.reject(new Error('quota')) };
+
+    const states = await review(deps({ cache }));
+
+    expect(states.at(-1)).toMatchObject({ stage: 'done', cached: false });
   });
 });

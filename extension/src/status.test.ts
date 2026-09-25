@@ -22,8 +22,9 @@ describe('statusText', () => {
     expect(statusText({ stage: 'analysing', game, index: 0, evaluation: { score: { cp: 0 } }, done: 3, total: 90 })).toBe('Analysing position 3 of 90…');
   });
 
-  it('says how many moves it analysed', () => {
-    expect(statusText({ stage: 'done', game, moves: [] })).toBe('Analysed 0 moves.');
+  it('says how many moves it analysed, and when they were saved earlier', () => {
+    expect(statusText({ stage: 'done', game, pgn: '', moves: [], positions: [], cached: false })).toBe('Analysed 0 moves.');
+    expect(statusText({ stage: 'done', game, pgn: '', moves: [], positions: [], cached: true })).toBe('Analysed 0 moves (saved in this browser).');
   });
 
   it('says why the review failed', () => {
