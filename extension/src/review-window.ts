@@ -17,6 +17,7 @@ export interface WindowParts {
   board: HTMLElement;
   evalBar: HTMLElement;
   graph: SVGSVGElement;
+  graphTip: HTMLElement;
   moves: HTMLElement;
   card: HTMLElement;
   status: HTMLElement;
@@ -44,7 +45,10 @@ const LAYOUT = `
       <div class="left">
         <div class="eval-bar"><span class="eval-text"></span></div>
         <div class="board"></div>
-        <svg class="graph" xmlns="http://www.w3.org/2000/svg" aria-label="Evaluation graph"></svg>
+        <div class="graph-wrap">
+          <svg class="graph" xmlns="http://www.w3.org/2000/svg" aria-label="Evaluation graph"></svg>
+          <div class="graph-tip" hidden></div>
+        </div>
       </div>
       <div class="right">
         <div class="moves"></div>
@@ -94,6 +98,7 @@ export function createWindow(root: HTMLElement, handlers: WindowHandlers): Windo
     board: root.querySelector('.board')!,
     evalBar: root.querySelector('.eval-bar')!,
     graph: root.querySelector<SVGSVGElement>('svg.graph')!,
+    graphTip: root.querySelector('.graph-tip')!,
     moves: root.querySelector('.moves')!,
     card: root.querySelector('.card')!,
     status: root.querySelector('.status')!,

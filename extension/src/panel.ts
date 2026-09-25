@@ -178,7 +178,7 @@ function record(index: number, evaluation: PositionEvaluation) {
   }
   evals[index] = toWhiteEval(evaluation.score, sideToMove(fenAt(game, index)));
   bestMoves[index] = evaluation.bestMoveUci;
-  renderGraph(parts.graph, evals, ply, classes);
+  renderGraph(parts.graph, evals, ply, classes, { width: 600, height: 80 });
   if (index === ply) {
     show(ply, false);
   }
@@ -212,7 +212,7 @@ function show(at: number, animate: boolean) {
   );
   renderEvalBar(parts.evalBar, evals[at], orientation);
   markCurrentMove(parts.moves, at);
-  renderGraph(parts.graph, evals, at, classes);
+  renderGraph(parts.graph, evals, at, classes, { width: 600, height: 80 });
   renderCard();
 }
 

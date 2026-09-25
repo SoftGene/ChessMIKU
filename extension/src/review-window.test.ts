@@ -33,10 +33,11 @@ describe('the review window', () => {
   it('has a place for every part', () => {
     const parts = createWindow(root, handlers);
 
-    for (const part of [parts.board, parts.evalBar, parts.graph, parts.moves, parts.card, parts.status, parts.title, parts.hints, parts.sound]) {
+    for (const part of [parts.board, parts.evalBar, parts.graph, parts.graphTip, parts.moves, parts.card, parts.status, parts.title, parts.hints, parts.sound]) {
       expect(root.contains(part)).toBe(true);
     }
     expect(parts.graph.namespaceURI).toBe('http://www.w3.org/2000/svg');
+    expect(parts.graphTip.hidden).toBe(true);
   });
 
   it('closes with its close button', () => {
