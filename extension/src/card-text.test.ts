@@ -12,7 +12,8 @@ const STATES: Exclude<CardState, { kind: 'ready' }>[] = [
   { kind: 'waiting-engine' },
   { kind: 'no-engine' },
   { kind: 'asking' },
-  { kind: 'writing' },
+  { kind: 'writing', waitedSeconds: 0 },
+  { kind: 'writing', waitedSeconds: 80 },
   { kind: 'unreachable' },
   { kind: 'quota', retryAfterSeconds: 18_000 },
   { kind: 'busy', retryAfterSeconds: 40 },
@@ -43,6 +44,20 @@ describe('the texts of the card', () => {
     expect(cardMessage('ru', { kind: 'quota', retryAfterSeconds: 1800 })).toContain('меньше чем через час');
     expect(cardMessage('cs', { kind: 'quota', retryAfterSeconds: 1800 })).toContain('za méně než hodinu');
     expect(cardMessage('en', { kind: 'quota', retryAfterSeconds: 7200 })).toContain('in about 2 h');
+  });
+
+  it('say how long the explanations have been written, and why it may take long, after half a minute', () => {
+    expect(LANGUAGES.map((language) => cardMessage(language, { kind: 'writing', waitedSeconds: 29 }))).toEqual([
+      'Пишем объяснения ключевых моментов…',
+      'Píšeme vysvětlení klíčových momentů…',
+      'Writing explanations of the key moments…',
+    ]);
+    expect(LANGUAGES.map((language) => cardMessage(language, { kind: 'writing', waitedSeconds: 80 }))).toEqual([
+      'Пишем объяснения ключевых моментов… Уже 1:20. Модель бывает перегружена — это может занять несколько минут.',
+      'Píšeme vysvětlení klíčových momentů… Už 1:20. Model bývá přetížený — může to trvat několik minut.',
+      'Writing explanations of the key moments… 1:20 so far. The model is sometimes overloaded — this can take a few minutes.',
+    ]);
+    expect(cardMessage('en', { kind: 'writing', waitedSeconds: 305 })).toContain('5:05 so far');
   });
 
   it('say how long a busy server asks to wait', () => {

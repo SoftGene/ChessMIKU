@@ -18,7 +18,7 @@ export type CardState =
   | { kind: 'waiting-engine' }
   | { kind: 'no-engine' }
   | { kind: 'asking' }
-  | { kind: 'writing' }
+  | { kind: 'writing'; waitedSeconds: number }
   | { kind: 'ready'; explanations: Explanation[] }
   | { kind: 'unreachable' }
   | { kind: 'quota'; retryAfterSeconds: number }
@@ -81,7 +81,7 @@ export function createBackendReview(deps: BackendDeps, view: BackendView, langua
     }
 
     view.classes(answer.classifications);
-    view.card({ kind: 'writing' });
+    view.card({ kind: 'writing', waitedSeconds: 0 });
     const sentAt = deps.now();
     let delay = answer.explanationsReady ? 0 : (pollDelay(0) ?? 0);
     for (;;) {
@@ -101,7 +101,9 @@ export function createBackendReview(deps: BackendDeps, view: BackendView, langua
         view.card({ kind: 'failed' });
         return;
       }
-      // Pending, or the server away for a moment: ask again later, not sooner than a busy server asks.
+      // Pending, or the server away for a moment: say how long it has been, and ask again later, not sooner
+      // than a busy server asks. The model is sometimes overloaded, and the server then tries for minutes.
+      view.card({ kind: 'writing', waitedSeconds: Math.round((deps.now() - sentAt) / 1000) });
       const next = pollDelay(deps.now() - sentAt);
       if (next === null) {
         view.card({ kind: 'timeout' });

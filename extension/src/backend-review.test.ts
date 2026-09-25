@@ -50,9 +50,21 @@ describe('the backend review', () => {
 
     expect(sent).toEqual([{ type: ANALYSE, ...game, language: 'ru' }]);
     expect(classes).toEqual([CLASSES]);
-    expect(kinds(cards)).toEqual(['asking', 'writing', 'ready']);
+    expect(kinds(cards)).toEqual(['asking', 'writing', 'writing', 'ready']);
     expect(cards.at(-1)).toEqual({ kind: 'ready', explanations: [{ ply: 1, text: 'Why.' }] });
     expect(waits).toEqual([3000, 3000]);
+  });
+
+  it('tells how long it has waited for the explanations', async () => {
+    const { review, cards } = setup([accepted()], [pending, pending, ready()]);
+
+    await review.start(game);
+
+    expect(cards.filter((card) => card.kind === 'writing')).toEqual([
+      { kind: 'writing', waitedSeconds: 0 },
+      { kind: 'writing', waitedSeconds: 3 },
+      { kind: 'writing', waitedSeconds: 6 },
+    ]);
   });
 
   it('asks at once when the explanations are ready already', async () => {

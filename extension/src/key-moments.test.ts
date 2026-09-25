@@ -76,7 +76,7 @@ describe('the key moments', () => {
   });
 
   it('shows where the explanations are, in the language of the explanations', () => {
-    renderKeyMoments(card, { kind: 'writing' }, { ...context, language: 'en' });
+    renderKeyMoments(card, { kind: 'writing', waitedSeconds: 0 }, { ...context, language: 'en' });
 
     expect(card.textContent).toBe('Writing explanations of the key moments…');
     expect(rows()).toEqual([]);

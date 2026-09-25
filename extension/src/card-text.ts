@@ -7,7 +7,7 @@ interface Texts {
   waitingEngine: string;
   noEngine: string;
   asking: string;
-  writing: string;
+  writing(waited: string | null): string;
   unreachable: string;
   quota(hours: number | null): string;
   busy(seconds: number): string;
@@ -25,7 +25,8 @@ const TEXTS: Record<Language, Texts> = {
     waitingEngine: 'Классы ходов и объяснения появятся, когда движок досчитает партию.',
     noEngine: 'Движок не запустился — без его оценок классов ходов и объяснений нет.',
     asking: 'Спрашиваем сервер…',
-    writing: 'Пишем объяснения ключевых моментов…',
+    writing: (waited) =>
+      waited === null ? 'Пишем объяснения ключевых моментов…' : `Пишем объяснения ключевых моментов… Уже ${waited}. Модель бывает перегружена — это может занять несколько минут.`,
     unreachable: 'Сервер недоступен: классов ходов и объяснений в этот раз нет. Разбор движком работает.',
     quota: (hours) =>
       `Разборы с объяснениями на сегодня кончились. Обновятся в 00:00 UTC, ${hours === null ? 'меньше чем через час' : `примерно через ${hours} ч`}. Разбор движком работает.`,
@@ -50,7 +51,8 @@ const TEXTS: Record<Language, Texts> = {
     waitingEngine: 'Hodnocení tahů a vysvětlení se objeví, až engine partii dopočítá.',
     noEngine: 'Engine se nespustil — bez jeho hodnocení nejsou hodnocení tahů ani vysvětlení.',
     asking: 'Ptáme se serveru…',
-    writing: 'Píšeme vysvětlení klíčových momentů…',
+    writing: (waited) =>
+      waited === null ? 'Píšeme vysvětlení klíčových momentů…' : `Píšeme vysvětlení klíčových momentů… Už ${waited}. Model bývá přetížený — může to trvat několik minut.`,
     unreachable: 'Server není dostupný: hodnocení tahů a vysvětlení tentokrát nejsou. Rozbor enginem funguje.',
     quota: (hours) =>
       `Rozbory s vysvětlením na dnešek došly. Obnoví se v 00:00 UTC, ${hours === null ? 'za méně než hodinu' : `zhruba za ${hours} h`}. Rozbor enginem funguje.`,
@@ -75,7 +77,10 @@ const TEXTS: Record<Language, Texts> = {
     waitingEngine: 'Move classes and explanations come once the engine finishes.',
     noEngine: 'The engine did not start — without its evaluations there are no move classes or explanations.',
     asking: 'Asking the server…',
-    writing: 'Writing explanations of the key moments…',
+    writing: (waited) =>
+      waited === null
+        ? 'Writing explanations of the key moments…'
+        : `Writing explanations of the key moments… ${waited} so far. The model is sometimes overloaded — this can take a few minutes.`,
     unreachable: 'The server is not reachable: no move classes or explanations this time. The engine review works.',
     quota: (hours) =>
       `Today's reviews with explanations are used up. They renew at 00:00 UTC, ${hours === null ? 'in less than an hour' : `in about ${hours} h`}. The engine review works.`,
@@ -113,7 +118,8 @@ export function cardMessage(language: Language, state: Exclude<CardState, { kind
     case 'asking':
       return texts.asking;
     case 'writing':
-      return texts.writing;
+      // Half a minute is long for the model: say how long it has been, and why.
+      return texts.writing(state.waitedSeconds < 30 ? null : `${Math.floor(state.waitedSeconds / 60)}:${String(state.waitedSeconds % 60).padStart(2, '0')}`);
     case 'unreachable':
       return texts.unreachable;
     case 'quota':
