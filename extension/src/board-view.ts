@@ -20,6 +20,20 @@ export interface BoardView {
   destroy(): void;
 }
 
+/** A piece on the board, or the one chosen. */
+export interface PieceAt {
+  key: string;
+  color: 'white' | 'black';
+}
+
+/**
+ * A press on another piece of the chosen piece's side chooses that piece. In the free mode chessground would take
+ * it for a move onto that square, and the piece pressed would not start to drag.
+ */
+export function pressChoosesAnother(chosen: PieceAt | undefined, pressed: PieceAt | undefined): boolean {
+  return Boolean(chosen && pressed && pressed.key !== chosen.key && pressed.color === chosen.color);
+}
+
 /** chessground in the element: our board; in the free play (T7.2) the player's pieces move. */
 export function createBoard(element: HTMLElement, orientation: Orientation): BoardView {
   let dropped: ((from: string, to: string) => void) | null = null;
@@ -37,6 +51,21 @@ export function createBoard(element: HTMLElement, orientation: Orientation): Boa
   // The best-move arrow: green, a little thinner than chessground's own; the second best thinner and paler.
   api.state.drawable.brushes.hint = { key: 'hint', color: '#629924', opacity: 0.85, lineWidth: 11 };
   api.state.drawable.brushes.second = { key: 'second', color: '#629924', opacity: 0.45, lineWidth: 7 };
+
+  // Before chessground hears the press (capture): a press on another piece of the same side first lets the chosen
+  // piece go, so that chessground chooses the one pressed and drags it.
+  const pieceAt = (key: Key | undefined): PieceAt | undefined => {
+    const piece = key ? api.state.pieces.get(key) : undefined;
+    return key && piece ? { key, color: piece.color } : undefined;
+  };
+  const onPress = (event: MouseEvent | TouchEvent) => {
+    const point = 'touches' in event ? event.touches[0] : event;
+    if (point && pressChoosesAnother(pieceAt(api.state.selected), pieceAt(api.getKeyAtDomPos([point.clientX, point.clientY])))) {
+      api.selectSquare(null);
+    }
+  };
+  element.addEventListener('mousedown', onPress, { capture: true });
+  element.addEventListener('touchstart', onPress, { capture: true, passive: true });
 
   return {
     show(position, { animate, hints, movable = null }) {
