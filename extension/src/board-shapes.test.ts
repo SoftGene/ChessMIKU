@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boardShapes, type BoardPosition } from './board-shapes';
+import { boardShapes, squareFills, type BoardPosition } from './board-shapes';
 import { mateMark, squareMark } from './icons';
 
 const AFTER_E4: BoardPosition = {
@@ -53,5 +53,29 @@ describe('boardShapes', () => {
 
   it('draws no class at the start, where no move was played', () => {
     expect(boardShapes({ fen: AFTER_E4.fen, check: false, mark: 'best', hint: ['e2', 'e4'] }, true)).toEqual([{ orig: 'e2', dest: 'e4', brush: 'hint' }]);
+  });
+});
+
+describe('squareFills', () => {
+  it('fills the square a blunder, a great or a brilliant move went to, named for the position', () => {
+    for (const cls of ['blunder', 'great', 'brilliant']) {
+      const fills = squareFills({ ...AFTER_E4, mark: cls });
+      expect([...fills.keys()]).toEqual(['e4']);
+      expect(fills.get('e4')).toMatch(new RegExp(`^fill-${cls} at-[0-9a-z]+$`));
+    }
+  });
+
+  it('fills nothing for other classes, without a class or without a move', () => {
+    for (const mark of ['best', 'mistake', 'inaccuracy', 'forced', undefined]) {
+      expect(squareFills({ ...AFTER_E4, mark }).size).toBe(0);
+    }
+    expect(squareFills({ fen: AFTER_E4.fen, check: false, mark: 'blunder' }).size).toBe(0);
+  });
+
+  it('names the fill of each position apart, and of one position alike', () => {
+    const other = { ...AFTER_E4, fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2', mark: 'blunder' };
+
+    expect(squareFills({ ...AFTER_E4, mark: 'blunder' }).get('e4')).not.toBe(squareFills(other).get('e4'));
+    expect(squareFills({ ...AFTER_E4, mark: 'blunder' }).get('e4')).toBe(squareFills({ ...AFTER_E4, mark: 'blunder' }).get('e4'));
   });
 });

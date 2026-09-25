@@ -17,6 +17,31 @@ export interface BoardPosition {
   mate?: { mated: string; winner: string };
 }
 
+/** Classes whose move fills its square with their colour (Pavel, T7.2a). */
+export const FILLED: ReadonlySet<string> = new Set(['blunder', 'great', 'brilliant']);
+
+/**
+ * The square the move went to, filled with the colour of its class, as chessground's custom square classes. chessground
+ * moves a square element of the same class to its new place instead of making it anew; the name of the position in
+ * the class makes each move's square new, so that it fades in again.
+ */
+export function squareFills(position: BoardPosition): Map<string, string> {
+  const fills = new Map<string, string>();
+  if (position.mark && FILLED.has(position.mark) && position.lastMove) {
+    fills.set(position.lastMove[1], `fill-${position.mark} at-${nameOf(position.fen)}`);
+  }
+  return fills;
+}
+
+// A short name of a position, fit for a class: a rolling hash of its FEN, in base 36.
+function nameOf(fen: string): string {
+  let hash = 0;
+  for (const char of fen) {
+    hash = (hash * 31 + char.charCodeAt(0)) | 0;
+  }
+  return (hash >>> 0).toString(36);
+}
+
 /**
  * The arrows (when hints are on), the class of the last move and the marks of a mate, as chessground shapes. The
  * marks carry the position, so that each move's marks are new to chessground and pop up (icons.ts).

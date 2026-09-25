@@ -538,9 +538,41 @@ header {
   }
 }
 
+/* The square a blunder, a great or a brilliant move went to fills with its colour and fades in. The piece stands
+   over it: the fill is chessground's square, under the pieces (board-shapes.ts, squareFills). */
+.cg-wrap cg-board square.fill-blunder {
+  background-color: rgba(217, 59, 59, 0.55);
+}
+
+.cg-wrap cg-board square.fill-great {
+  background-color: rgba(91, 139, 214, 0.55);
+}
+
+.cg-wrap cg-board square.fill-brilliant {
+  background-color: rgba(38, 181, 168, 0.55);
+}
+
+.cg-wrap cg-board square.fill-blunder,
+.cg-wrap cg-board square.fill-great,
+.cg-wrap cg-board square.fill-brilliant {
+  animation: square-fill 400ms ease-out both;
+}
+
+@keyframes square-fill {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mark-pop,
-  .mark-ring {
+  .mark-ring,
+  .cg-wrap cg-board square.fill-blunder,
+  .cg-wrap cg-board square.fill-great,
+  .cg-wrap cg-board square.fill-brilliant {
     animation: none;
   }
 
