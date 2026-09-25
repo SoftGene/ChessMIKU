@@ -74,7 +74,7 @@ describe('the built extension', () => {
   it('has the move sounds inside the panel script: no file to load, no fetch', async () => {
     const code = await read(await panelScript());
 
-    expect(code.match(/data:audio\/ogg;base64,/g)).toHaveLength(3);
+    expect(code.match(/data:audio\/ogg;base64,/g)).toHaveLength(7);
   });
 
   it('ships the engine the panel starts, with its license', async () => {
