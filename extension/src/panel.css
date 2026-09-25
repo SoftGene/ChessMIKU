@@ -237,3 +237,63 @@ header {
 .no-game .status {
   visibility: visible;
 }
+
+.languages {
+  display: flex;
+  gap: 2px;
+}
+
+/* One language is chosen: it is marked, the others are not struck out like a switch that is off. */
+.tool.language[aria-pressed='false'] {
+  text-decoration: none;
+}
+
+.tool.language[aria-pressed='true'] {
+  background: var(--current);
+}
+
+.card {
+  max-height: 38vh;
+  overflow-y: auto;
+}
+
+.card-message {
+  margin: 0;
+}
+
+.moments-title {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.moment {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.moment:hover,
+.moment[aria-expanded='true'] {
+  background: var(--surface-2);
+}
+
+.moment-class {
+  color: var(--muted);
+}
+
+.moment-text {
+  margin: 4px 6px 8px;
+  line-height: 1.5;
+  color: var(--text);
+}

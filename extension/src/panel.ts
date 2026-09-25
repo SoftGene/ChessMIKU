@@ -36,7 +36,7 @@ const START_TIMEOUT_MS = 10_000;
 
 const page = readPanelSearch(location.search);
 let orientation = readOrientation(location.search);
-const parts = createWindow(document.getElementById('review')!, { close, flip, toggleHints, toggleSound, navigate: go });
+const parts = createWindow(document.getElementById('review')!, { close, flip, toggleHints, toggleSound, navigate: go, setLanguage: () => undefined });
 const board = createBoard(parts.board, orientation);
 const sounds = createSounds();
 let hints = readSetting('hints');
