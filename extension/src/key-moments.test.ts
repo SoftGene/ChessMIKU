@@ -62,11 +62,11 @@ describe('the key moments', () => {
   });
 
   it("shows a class it does not know without an icon, by the contract's word", () => {
-    renderKeyMoments(card, ready({ ply: 1, text: 'First.' }), { ...context, classes: new Map([[1, 'great']]) });
+    renderKeyMoments(card, ready({ ply: 1, text: 'First.' }), { ...context, classes: new Map([[1, 'forced']]) });
 
     expect(rows()).toHaveLength(1);
     expect(rows()[0].querySelector('svg')).toBeNull();
-    expect(parts(rows()[0])).toEqual(['1. b3', 'great']);
+    expect(parts(rows()[0])).toEqual(['1. b3', 'forced']);
   });
 
   it('says there are no mistakes to explain', () => {

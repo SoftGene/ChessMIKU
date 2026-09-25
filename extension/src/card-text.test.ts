@@ -66,7 +66,15 @@ describe('the texts of the card', () => {
 
   it('name the classes in the language of the explanations', () => {
     expect(LANGUAGES.map((language) => className(language, 'blunder'))).toEqual(['зевок', 'hrubá chyba', 'blunder']);
-    expect(className('ru', 'great')).toBe('great');
+    expect(className('ru', 'forced')).toBe('forced');
+  });
+
+  it('name great and brilliant moves ahead of the backend', () => {
+    expect(LANGUAGES.map((language) => [className(language, 'great'), className(language, 'brilliant')])).toEqual([
+      ['сильный', 'блестящий'],
+      ['skvělý', 'brilantní'],
+      ['great', 'brilliant'],
+    ]);
   });
 
   it.each(['ru', 'cs'] as const)('name every class of the contract in %s', (language) => {

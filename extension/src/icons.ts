@@ -1,5 +1,8 @@
-/** The classes of moves the backend sends (contracts/api.yaml, Classification). */
-export type MoveClass = 'best' | 'excellent' | 'good' | 'book' | 'inaccuracy' | 'mistake' | 'miss' | 'blunder';
+/**
+ * The classes of moves the backend sends (contracts/api.yaml, Classification), and great and brilliant, drawn
+ * ahead of it: the backend is to give them after v1.
+ */
+export type MoveClass = 'best' | 'excellent' | 'good' | 'book' | 'inaccuracy' | 'mistake' | 'miss' | 'blunder' | 'great' | 'brilliant';
 
 // Each icon is a circle of its colour with a white symbol, drawn on a 24 × 24 grid. The symbols and
 // colours follow what players know from chess.com; the drawings are our own.
@@ -27,6 +30,8 @@ const MARKS: Partial<Record<MoveClass, [Mark, number][]>> = {
   inaccuracy: [['question', 10.1], ['exclaim', 16.2]],
   mistake: [['question', 12]],
   blunder: [['question', 8], ['question', 16]],
+  great: [['exclaim', 12]],
+  brilliant: [['exclaim', 9.8], ['exclaim', 14.2]],
 };
 const marks = (cls: MoveClass) => (MARKS[cls] ?? []).map(([mark, cx]) => drawMark(mark, cx)).join('');
 
@@ -39,6 +44,8 @@ export const MOVE_CLASSES: Record<MoveClass, { label: string; color: string; sym
   mistake: { label: 'Mistake', color: '#e8883a', symbol: marks('mistake') },
   miss: { label: 'Miss', color: '#e05a6b', symbol: cross },
   blunder: { label: 'Blunder', color: '#d93b3b', symbol: marks('blunder') },
+  great: { label: 'Great', color: '#5b8bd6', symbol: marks('great') },
+  brilliant: { label: 'Brilliant', color: '#26b5a8', symbol: marks('brilliant') },
 };
 
 // A class from the backend the extension does not know yet is shown without an icon (contract, decision 4).
@@ -58,9 +65,28 @@ export function moveIcon(cls: string, size = 16): string | null {
     : null;
 }
 
-/** The icon of a class in the top right corner of a square, for chessground's custom SVG (a square is 100 × 100). */
-export function squareMark(cls: string): string | null {
-  return known(cls) ? `<g transform="translate(60 -4) scale(1.75)">${drawing(cls)}</g>` : null;
+/** Classes whose mark on the board rings as it pops up: the moves a player most wants to see. */
+export const NOTABLE: ReadonlySet<string> = new Set(['blunder', 'best', 'great', 'brilliant']);
+
+// The pop and the ring are CSS animations (panel.css, .mark-pop, .mark-ring).
+const ring = (color: string) => `<circle class="mark-ring" cx="12" cy="12" r="11" fill="none" stroke="${color}" stroke-width="2"/>`;
+// The top right corner of a square of 100 × 100. chessground draws a mark anew only when its markup changes: `at`,
+// the position, makes each move's mark new, so that it pops up even where the move before left the same one.
+const corner = (at: string, inner: string) => `<g transform="translate(60 -4) scale(1.75)"><g class="mark-pop" data-at="${at}">${inner}</g></g>`;
+
+/** The icon of a class in the top right corner of a square, for chessground's custom SVG; `at` is the position. */
+export function squareMark(cls: string, at = ''): string | null {
+  return known(cls) ? corner(at, `${NOTABLE.has(cls) ? ring(MOVE_CLASSES[cls].color) : ''}${drawing(cls)}`) : null;
+}
+
+const hash = '<path data-mark="hash" d="M10.2 7l-1.2 10M15 7l-1.2 10M7.6 10.3h9.2M7.2 13.7h9.2" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>';
+const crown = '<path data-mark="crown" d="M6.6 16.4h10.8l.9-7.2-3.4 2.7L12 7.4l-2.9 4.5-3.4-2.7z" fill="#fff"/>';
+const MATE = { mated: { color: '#2f2a24', symbol: hash }, winner: { color: '#d9a93b', symbol: crown } };
+
+/** The mark of a mate on a king's square, as `squareMark` places it: # on the mated king, a crown on the winner's. */
+export function mateMark(kind: 'mated' | 'winner', at = ''): string {
+  const { color, symbol } = MATE[kind];
+  return corner(at, `${ring(color)}<circle cx="12" cy="12" r="11" fill="${color}" stroke="#17140f" stroke-width="1.5"/>${symbol}`);
 }
 
 /** Where the drawn marks of a class sit on the 24 × 24 grid; null for a class drawn otherwise. */

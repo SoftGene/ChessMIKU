@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { classColor, glyphBox, moveIcon, squareMark } from './icons';
+import { classColor, glyphBox, mateMark, moveIcon, squareMark } from './icons';
 
 // The classes the backend sends, as the contract lists them.
 const contract = readFileSync(join(import.meta.dirname, '../../contracts/api.yaml'), 'utf8');
@@ -24,7 +24,8 @@ describe('icons', () => {
     expect(moveIcon('blunder')).toContain('aria-label="Blunder"');
   });
 
-  it.each(['inaccuracy', 'mistake', 'blunder'])('draws the marks of %s as tall as the others, centred in the circle', (cls) => {
+  it.each(['inaccuracy', 'mistake', 'blunder', 'great', 'brilliant'])('draws the marks of %s as tall as the others, centred in the circle', (cls) => {
+    expect(glyphBox(cls)).not.toBeNull();
     const box = glyphBox(cls)!;
     const single = glyphBox('mistake')!;
 
@@ -49,6 +50,14 @@ describe('icons', () => {
     expect(moveIcon('inaccuracy')).toContain('d="M16.2 6.8v7.2"');
   });
 
+  it.each([['great', '#5b8bd6', ['exclaim']], ['brilliant', '#26b5a8', ['exclaim', 'exclaim']]] as const)(
+    'draws %s ahead of the backend: its colour and its exclamation marks',
+    (cls, color, marks) => {
+      expect(classColor(cls)).toBe(color);
+      expect([...(moveIcon(cls) ?? '').matchAll(/data-mark="(\w+)"/g)].map((m) => m[1])).toEqual(marks);
+    },
+  );
+
   it('gives the book its spine', () => {
     expect(moveIcon('book')).toContain('d="M12 8.3v8.4"');
   });
@@ -58,11 +67,36 @@ describe('icons', () => {
     expect(glyphBox('<script>')).toBeNull();
   });
 
+  it('lets every mark pop up, and rings the notable ones in their colour', () => {
+    for (const cls of ['blunder', 'best', 'great', 'brilliant']) {
+      expect(squareMark(cls)).toContain(`class="mark-ring" cx="12" cy="12" r="11" fill="none" stroke="${classColor(cls)}"`);
+    }
+    for (const cls of ['excellent', 'good', 'book', 'inaccuracy', 'mistake', 'miss']) {
+      expect(squareMark(cls)).not.toContain('mark-ring');
+    }
+    expect(squareMark('mistake')).toContain('<g class="mark-pop"');
+  });
+
+  it('carries the position in the mark, so that the board draws it anew on each move', () => {
+    expect(squareMark('best', 'fen-a')).toContain('data-at="fen-a"');
+    expect(squareMark('best', 'fen-a')).not.toBe(squareMark('best', 'fen-b'));
+  });
+
+  it('marks a mate: # on the mated king, a crown on the winner, both ringed', () => {
+    expect(mateMark('mated')).toMatch(/^<g transform="translate\(60 -4\) scale\(1\.75\)">/);
+    expect(mateMark('mated')).toContain('fill="#2f2a24"');
+    expect(mateMark('mated')).toContain('data-mark="hash"');
+    expect(mateMark('winner')).toContain('fill="#d9a93b"');
+    expect(mateMark('winner')).toContain('data-mark="crown"');
+    expect([mateMark('mated'), mateMark('winner')].every((mark) => mark.includes('mark-ring'))).toBe(true);
+    expect(mateMark('winner', 'fen-a')).toContain('data-at="fen-a"');
+  });
+
   it('puts the mark in the top right corner of a square of 100 × 100', () => {
     expect(squareMark('best')).toMatch(/^<g transform="translate\(60 -4\) scale\(1\.75\)">/);
   });
 
-  it.each(['brilliant', 'great', '<script>'])('has no icon for a class it does not know: %s', (cls) => {
+  it.each(['forced', 'genius', '<script>'])('has no icon for a class it does not know: %s', (cls) => {
     expect(moveIcon(cls)).toBeNull();
     expect(squareMark(cls)).toBeNull();
     expect(classColor(cls)).toBeNull();

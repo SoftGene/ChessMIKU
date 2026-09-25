@@ -1,7 +1,7 @@
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type { Key } from 'chessground/types';
-import { boardShapes, type BoardPosition } from './board-shapes';
+import { boardShapes, squareFills, type BoardPosition } from './board-shapes';
 import type { Orientation } from './page';
 
 /** Which pieces the player can move, and where: from chess.js (legal-moves.ts). */
@@ -74,6 +74,7 @@ export function createBoard(element: HTMLElement, orientation: Orientation): Boa
         lastMove: position.lastMove as Key[] | undefined,
         turnColor: position.fen.split(' ')[1] === 'b' ? 'black' : 'white',
         check: position.check,
+        highlight: { lastMove: true, check: true, custom: squareFills(position) as Map<Key, string> },
         animation: { enabled: animate, duration: 80 },
         movable: { color: movable?.color, dests: (movable?.dests ?? new Map()) as Map<Key, Key[]> },
       });

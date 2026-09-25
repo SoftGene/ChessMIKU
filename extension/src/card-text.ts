@@ -43,6 +43,8 @@ const TEXTS: Record<Language, Texts> = {
       mistake: 'ошибка',
       miss: 'упущенная возможность',
       blunder: 'зевок',
+      great: 'сильный',
+      brilliant: 'блестящий',
     },
   },
   cs: {
@@ -69,6 +71,8 @@ const TEXTS: Record<Language, Texts> = {
       mistake: 'chyba',
       miss: 'promarněná šance',
       blunder: 'hrubá chyba',
+      great: 'skvělý',
+      brilliant: 'brilantní',
     },
   },
   en: {
@@ -97,6 +101,8 @@ const TEXTS: Record<Language, Texts> = {
       mistake: 'mistake',
       miss: 'miss',
       blunder: 'blunder',
+      great: 'great',
+      brilliant: 'brilliant',
     },
   },
 };

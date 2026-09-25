@@ -57,3 +57,15 @@ function plyNumber(fen: string): number {
   const [, turn, , , , fullmove] = fen.split(' ');
   return (Number(fullmove) - 1) * 2 + (turn === 'b' ? 2 : 1);
 }
+
+/** On a mate, the square of the king mated and of the winner's king; null otherwise. */
+export function mateSquares(fen: string): { mated: string; winner: string } | null {
+  const chess = new Chess(fen);
+  if (!chess.isCheckmate()) {
+    return null;
+  }
+  const mated = chess.turn();
+  const [matedKing] = chess.findPiece({ type: 'k', color: mated });
+  const [winnerKing] = chess.findPiece({ type: 'k', color: mated === 'w' ? 'b' : 'w' });
+  return { mated: matedKing, winner: winnerKing };
+}
