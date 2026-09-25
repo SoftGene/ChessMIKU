@@ -5,9 +5,11 @@
 // &engine=missing: the engine cannot start; &classes=sample: sample icons; &backend=off: the server is away;
 // &fresh=1: forget the saved evaluations (the installation id stays).
 import archive from '../test/fixtures/archive-hikaru-2026-08.json';
+import { fetchJson } from '../src/archive';
 import { isAnalyseMessage, isExplanationsMessage } from '../src/backend-messages';
 import { serveBackend, type BackendDeps } from '../src/backend-service';
 import { FIND_FINISHED_GAME } from '../src/messages';
+import { fetchPlayerInfo, isPlayerInfoMessage } from '../src/player-info';
 
 const query = new URLSearchParams(location.search);
 const game = archive.games.find((g) => g.url.endsWith(`/${query.get('id')}`));
@@ -47,6 +49,10 @@ async function sendMessage(message: unknown): Promise<unknown> {
   }
   if (isExplanationsMessage(message)) {
     return away ? { status: 'unreachable' } : serveBackend(message, backend);
+  }
+  // The public API of chess.com answers any page (Access-Control-Allow-Origin: *).
+  if (isPlayerInfoMessage(message)) {
+    return fetchPlayerInfo(message.username, fetchJson);
   }
   if ((message as { type?: unknown }).type === FIND_FINISHED_GAME) {
     return game ? { status: 'finished', pgn: game.pgn } : { status: 'not-found' };
