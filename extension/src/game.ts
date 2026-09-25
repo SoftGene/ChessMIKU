@@ -1,4 +1,4 @@
-import { Chess } from 'chess.js';
+import { Chess, type Move } from 'chess.js';
 
 /** The players, result and date from the PGN headers; a missing header is null. */
 export interface GameHeaders {
@@ -54,20 +54,26 @@ export function readGame(pgn: string): Game {
       date: tags.Date && !tags.Date.includes('?') ? tags.Date : null,
     },
     startFen: history[0]?.before ?? chess.fen(),
-    plies: history.map((move, i) => ({
-      ply: i + 1,
-      san: move.san,
-      uci: move.lan,
-      from: move.from,
-      to: move.to,
-      color: move.color,
-      fenBefore: move.before,
-      fenAfter: move.after,
-      capture: move.isCapture(),
-      castle: move.isKingsideCastle() || move.isQueensideCastle(),
-      check: move.san.endsWith('+'),
-      mate: move.san.endsWith('#'),
-    })),
+    plies: history.map((move, i) => plyOf(move, i + 1)),
+  };
+}
+
+/** A half-move as the window uses it; `ply` is its number from the start of the game. */
+export function plyOf(move: Move, ply: number): Ply {
+  return {
+    ply,
+    san: move.san,
+    uci: move.lan,
+    from: move.from,
+    to: move.to,
+    color: move.color,
+    fenBefore: move.before,
+    fenAfter: move.after,
+    // chess.js flags en passant apart from other captures.
+    capture: move.isCapture() || move.isEnPassant(),
+    castle: move.isKingsideCastle() || move.isQueensideCastle(),
+    check: move.san.endsWith('+'),
+    mate: move.san.endsWith('#'),
   };
 }
 

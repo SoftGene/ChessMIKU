@@ -3,7 +3,7 @@
 // of the bench server. Only chrome.* is replaced. Run: docker compose up, npm run bench, then open
 // /bench/panel-harness.html?type=live&id=173765478164&players=Hikaru%2Cpoohineedyou
 // &engine=missing: the engine cannot start; &classes=sample: sample icons; &backend=off: the server is away;
-// &fresh=1: forget the saved evaluations (the installation id stays).
+// &fresh=1: forget the saved evaluations (the installation id stays); &pgn=promotion: a game to promote a pawn in.
 import archive from '../test/fixtures/archive-hikaru-2026-08.json';
 import { fetchJson } from '../src/archive';
 import { isAnalyseMessage, isExplanationsMessage } from '../src/backend-messages';
@@ -12,7 +12,9 @@ import { FIND_FINISHED_GAME } from '../src/messages';
 import { fetchPlayerInfo, isPlayerInfoMessage } from '../src/player-info';
 
 const query = new URLSearchParams(location.search);
-const game = archive.games.find((g) => g.url.endsWith(`/${query.get('id')}`));
+// &pgn=promotion: a short game whose pawn on b7 can promote at once (no players: the names ask no API).
+const PROMOTION = { pgn: '1. e4 d5 2. exd5 c6 3. dxc6 Nf6 4. cxb7 Nbd7 *' };
+const game = query.get('pgn') === 'promotion' ? PROMOTION : archive.games.find((g) => g.url.endsWith(`/${query.get('id')}`));
 
 // chrome.storage.local, kept in this page's localStorage: a reload finds the saved evaluations and the installation.
 const KEY = 'harness.storage';

@@ -202,9 +202,12 @@ header {
   stroke-width: 2;
 }
 
+/* The players, the moves (they take the height left), then rows as tall as they need: the hidden row of the
+   player's line takes none. */
 .right {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-auto-rows: auto;
   gap: 12px;
   min-height: 0;
 }
@@ -411,4 +414,85 @@ header {
   justify-self: center;
   color: var(--muted);
   font-size: 11px;
+}
+
+/* The choice of a promotion, over the board: the board dims, the four pieces stand in the column of the square. */
+.promotion {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: rgba(8, 6, 4, 0.55);
+}
+
+.promotion button {
+  position: absolute;
+  width: 12.5%;
+  height: 12.5%;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #efe9dc;
+  cursor: pointer;
+}
+
+.promotion button:hover {
+  background: #e8883a;
+}
+
+.promotion piece {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+}
+
+.tool.back {
+  flex: none;
+}
+
+/* The player's line: the engine's two lines over the moves of the line. */
+.line {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.line-engine {
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.line-san {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.line-moves {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 4px;
+}
+
+.line-number {
+  color: var(--muted);
+}
+
+.line-move {
+  padding: 2px 5px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.line-move:hover {
+  background: var(--surface-2);
+}
+
+.line-move[aria-current='true'] {
+  background: var(--current);
 }

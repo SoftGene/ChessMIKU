@@ -9,6 +9,7 @@ export interface WindowHandlers {
   toggleSound(): void;
   navigate(action: NavAction): void;
   setLanguage(language: Language): void;
+  backToGame(): void;
 }
 
 export interface WindowParts {
@@ -25,6 +26,8 @@ export interface WindowParts {
   sound: HTMLButtonElement;
   languages: HTMLButtonElement[];
   players: { white: HTMLElement; black: HTMLElement };
+  back: HTMLButtonElement;
+  line: HTMLElement;
 }
 
 // Our own markup, no data in it: players, moves and texts are set as text afterwards.
@@ -32,6 +35,7 @@ const LAYOUT = `
   <section class="window" role="dialog" aria-label="Game review" tabindex="-1">
     <header>
       <h1 class="title"></h1>
+      <button type="button" class="tool back" aria-label="Back to the game" hidden>↩ Back to the game</button>
       <div class="languages" role="group" aria-label="Language of the explanations">
         <button type="button" class="tool language" data-language="ru" aria-pressed="false">RU</button>
         <button type="button" class="tool language" data-language="cs" aria-pressed="false">CS</button>
@@ -57,6 +61,7 @@ const LAYOUT = `
           <div class="player" data-color="black"><span class="avatar"></span><span class="player-name"></span><span class="player-rating"></span><strong class="accuracy">—</strong><span class="accuracy-label">Accuracy</span></div>
         </div>
         <div class="moves"></div>
+        <div class="line" hidden></div>
         <nav class="nav">
           <button type="button" class="tool" aria-label="First move">⏮</button>
           <button type="button" class="tool" aria-label="Previous move">◀</button>
@@ -77,6 +82,7 @@ export function createWindow(root: HTMLElement, handlers: WindowHandlers): Windo
   button('Flip board').addEventListener('click', () => handlers.flip());
   button('Hints').addEventListener('click', () => handlers.toggleHints());
   button('Sound').addEventListener('click', () => handlers.toggleSound());
+  button('Back to the game').addEventListener('click', () => handlers.backToGame());
   const nav: [string, NavAction][] = [
     ['First move', 'first'],
     ['Previous move', 'prev'],
@@ -114,6 +120,8 @@ export function createWindow(root: HTMLElement, handlers: WindowHandlers): Windo
       white: root.querySelector('.player[data-color="white"]')!,
       black: root.querySelector('.player[data-color="black"]')!,
     },
+    back: root.querySelector<HTMLButtonElement>('.back')!,
+    line: root.querySelector('.line')!,
   };
 }
 
@@ -124,9 +132,13 @@ export function showLanguage(parts: WindowParts, language: Language): void {
   }
 }
 
-/** "result · date", as text; the players have a block of their own (players.ts). */
-export function showHeaders(parts: WindowParts, headers: GameHeaders): void {
-  parts.title.textContent = [headers.result, headers.date].filter(Boolean).join(' · ');
+/**
+ * "result · date", as text; the players have a block of their own (players.ts). In the player's line: the move it
+ * leaves the game at, and the way back.
+ */
+export function showHeaders(parts: WindowParts, headers: GameHeaders, lineFrom: string | null = null): void {
+  parts.title.textContent = lineFrom ? `Your line from move ${lineFrom}` : [headers.result, headers.date].filter(Boolean).join(' · ');
+  parts.back.hidden = lineFrom === null;
 }
 
 export function setPressed(button: HTMLButtonElement, on: boolean): void {

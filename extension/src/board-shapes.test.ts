@@ -18,6 +18,15 @@ describe('boardShapes', () => {
     ]);
   });
 
+  it("draws the line's second-best move as a thinner arrow after the best", () => {
+    expect(boardShapes({ ...AFTER_E4, second: ['e7', 'e5'] }, true)).toEqual([
+      { orig: 'c7', dest: 'c5', brush: 'hint' },
+      { orig: 'e7', dest: 'e5', brush: 'second' },
+      { orig: 'e4', customSvg: { html: squareMark('best') } },
+    ]);
+    expect(boardShapes({ ...AFTER_E4, second: ['e7', 'e5'] }, false)).toEqual([{ orig: 'e4', customSvg: { html: squareMark('best') } }]);
+  });
+
   it('leaves the arrow out when hints are off', () => {
     expect(boardShapes(AFTER_E4, false)).toEqual([{ orig: 'e4', customSvg: { html: squareMark('best') } }]);
   });

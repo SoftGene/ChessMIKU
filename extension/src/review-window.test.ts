@@ -12,6 +12,7 @@ let handlers: {
   toggleSound: Mock<() => void>;
   navigate: Mock<(action: NavAction) => void>;
   setLanguage: Mock<(language: Language) => void>;
+  backToGame: Mock<() => void>;
 };
 
 beforeEach(() => {
@@ -24,6 +25,7 @@ beforeEach(() => {
     toggleSound: vi.fn(),
     navigate: vi.fn<(action: NavAction) => void>(),
     setLanguage: vi.fn<(language: Language) => void>(),
+    backToGame: vi.fn(),
   };
 });
 
@@ -33,11 +35,13 @@ describe('the review window', () => {
   it('has a place for every part', () => {
     const parts = createWindow(root, handlers);
 
-    for (const part of [parts.board, parts.evalBar, parts.graph, parts.graphTip, parts.moves, parts.card, parts.status, parts.title, parts.hints, parts.sound]) {
+    expect(parts.back).not.toBeNull();
+    for (const part of [parts.board, parts.evalBar, parts.graph, parts.graphTip, parts.moves, parts.card, parts.status, parts.title, parts.hints, parts.sound, parts.back, parts.line]) {
       expect(root.contains(part)).toBe(true);
     }
     expect(parts.graph.namespaceURI).toBe('http://www.w3.org/2000/svg');
     expect(parts.graphTip.hidden).toBe(true);
+    expect([parts.back.hidden, parts.line.hidden]).toEqual([true, true]);
     expect([parts.players.white.dataset.color, parts.players.black.dataset.color]).toEqual(['white', 'black']);
   });
 
@@ -86,6 +90,27 @@ describe('the review window', () => {
 
     showHeaders(parts, { white: 'Hikaru', black: 'poohineedyou', whiteElo: null, blackElo: null, result: '*', date: null });
     expect(parts.title.textContent).toBe('*');
+  });
+
+  it('goes back to the game with its button', () => {
+    createWindow(root, handlers);
+
+    expect(root.querySelector('button[aria-label="Back to the game"]')).not.toBeNull();
+    click('button[aria-label="Back to the game"]');
+
+    expect(handlers.backToGame).toHaveBeenCalledOnce();
+  });
+
+  it("names the player's line and shows the way back while in one", () => {
+    const parts = createWindow(root, handlers);
+    const headers = { white: 'Hikaru', black: 'poohineedyou', whiteElo: null, blackElo: null, result: '1-0', date: '2026.08.30' };
+
+    expect(parts.back).not.toBeNull();
+    showHeaders(parts, headers, '23');
+    expect([parts.title.textContent, parts.back.hidden]).toEqual(['Your line from move 23', false]);
+
+    showHeaders(parts, headers);
+    expect([parts.title.textContent, parts.back.hidden]).toEqual(['1-0 · 2026.08.30', true]);
   });
 
   it('switches the language of the explanations', () => {
