@@ -30,6 +30,12 @@ describe('readGame', () => {
     expect(kinds(89)).toEqual({ capture: false, castle: false, check: false, mate: true });
   });
 
+  it('counts an en passant capture as a capture', () => {
+    const { plies } = readGame('1. e4 a6 2. e5 d5 3. exd6');
+
+    expect([plies[4].san, plies[4].capture]).toEqual(['exd6', true]);
+  });
+
   it('knows every position: the start, and after each half-move', () => {
     const game = readGame(HIKARU);
 
