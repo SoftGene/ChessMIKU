@@ -1,4 +1,5 @@
 import { Chess } from 'chess.js';
+import { fenAt, type Game } from './game';
 import type { Evaluation, Score } from './uci';
 
 /** One half-move with the engine's evaluations, in the shape of `MoveEvaluation` in contracts/api.yaml. */
@@ -16,36 +17,44 @@ export interface MoveEvaluation {
 /** Evaluates one position given in FEN. */
 export type Evaluate = (fen: string) => Promise<Evaluation>;
 
+/** The evaluation of one position of the game: its score for the side to move, and its best move if it has one. */
+export interface PositionEvaluation {
+  score: Score;
+  bestMoveUci?: string;
+}
+
+/** Told as each position is evaluated, in whatever order: its index (0 is the start), its evaluation, how many are done. */
+export type OnPosition = (index: number, evaluation: PositionEvaluation, done: number, total: number) => void;
+
 /**
  * Evaluates every move of a game. Each position is searched once: its score is the score before
  * the move played from it, and, with the sign flipped, the score after the move that led to it.
  */
-export async function analyseGame(pgn: string, evaluate: Evaluate, onProgress?: (done: number, total: number) => void): Promise<MoveEvaluation[]> {
-  const moves = readMoves(pgn);
-  if (moves.length === 0) {
+export async function analyseGame(game: Game, evaluate: Evaluate, onPosition?: OnPosition): Promise<MoveEvaluation[]> {
+  if (game.plies.length === 0) {
     return [];
   }
 
   // Every position is asked at once, so that several engines can search in parallel; the answers
   // stay with their positions whatever order they come back in.
-  const positions = [moves[0].before, ...moves.map((move) => move.after)];
+  const positions = Array.from({ length: game.plies.length + 1 }, (_, i) => fenAt(game, i));
   let done = 0;
   const evaluations = await Promise.all(
-    positions.map(async (fen): Promise<{ score: Score; bestMoveUci?: string }> => {
+    positions.map(async (fen, index): Promise<PositionEvaluation> => {
       const final = finalScore(fen);
       const evaluation = final ? { score: final } : await evaluate(fen);
-      onProgress?.(++done, positions.length);
+      onPosition?.(index, evaluation, ++done, positions.length);
       return evaluation;
     }),
   );
 
-  return moves.map((move, i) => {
+  return game.plies.map((ply, i) => {
     const before = evaluations[i].score;
     const after = flip(evaluations[i + 1].score);
     return {
-      ply: i + 1,
-      san: move.san,
-      uci: move.lan,
+      ply: ply.ply,
+      san: ply.san,
+      uci: ply.uci,
       // A move was played from this position, so it had moves and the engine searched it.
       bestMoveUci: evaluations[i].bestMoveUci!,
       evalBeforeCp: 'cp' in before ? before.cp : null,
@@ -54,16 +63,6 @@ export async function analyseGame(pgn: string, evaluate: Evaluate, onProgress?: 
       mateAfter: 'mate' in after ? after.mate : null,
     };
   });
-}
-
-function readMoves(pgn: string) {
-  const chess = new Chess();
-  try {
-    chess.loadPgn(pgn);
-  } catch (error) {
-    throw new Error(`The game could not be read: ${error instanceof Error ? error.message : String(error)}`);
-  }
-  return chess.history({ verbose: true });
 }
 
 // A position without a move has nothing to search: the side to move is mated (the move that led

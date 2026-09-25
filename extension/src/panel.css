@@ -1,0 +1,239 @@
+:root {
+  color-scheme: dark;
+  --bg: #17140f;
+  --surface: #221d16;
+  --surface-2: #2b251c;
+  --text: #e4dccd;
+  --muted: #a2977f;
+  --current: #4a3f2e;
+  /* The board takes the height of the browser window, as on chess.com. Around it, from the top: the
+     dimmed page (16px), the window's padding (14px), the header (32px), a gap (12px); below it a gap (8px),
+     the graph (80px), the padding and the page again: 192px in all. Across: the page (32px), the padding
+     (36px), the evaluation bar with its gap (30px), a gap (16px) and the right column (at least 300px). */
+  --board: min(calc(100vh - 192px), calc(100vw - 414px));
+  --side: 420px;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: transparent;
+  overscroll-behavior: contain;
+  font: 14px/1.4 system-ui, sans-serif;
+  color: var(--text);
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 6, 4, 0.72);
+}
+
+.window {
+  box-sizing: border-box;
+  width: min(calc(100vw - 32px), calc(var(--board) + 82px + var(--side)));
+  height: calc(100vh - 32px);
+  display: grid;
+  grid-template-rows: 32px minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  outline: none;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.title {
+  flex: 1;
+  margin: 0;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tool {
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tool[aria-pressed='false'] {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 16px;
+  min-height: 0;
+}
+
+.left {
+  display: grid;
+  grid-template-columns: 22px var(--board);
+  gap: 8px;
+  align-content: start;
+}
+
+.eval-bar {
+  --white-share: 0.5;
+  position: relative;
+  height: var(--board);
+  overflow: hidden;
+  border-radius: 4px;
+  background: #3a342a;
+}
+
+/* White's share grows from the bottom (from the top when Black is at the bottom); scaled, not resized,
+   so the replay's ten updates a second do not lay the page out again. */
+.eval-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #efe9dc;
+  transform: scaleY(var(--white-share));
+  transform-origin: bottom;
+  transition: transform 120ms linear;
+}
+
+.eval-bar.flipped::after {
+  transform-origin: top;
+}
+
+.eval-text {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+  color: #8a7a5c;
+}
+
+.board {
+  width: var(--board);
+  height: var(--board);
+}
+
+.nav {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.graph {
+  grid-column: 1 / -1;
+  width: 100%;
+  height: 80px;
+  border-radius: 6px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.graph-mid {
+  stroke: #4a4235;
+  stroke-width: 1;
+}
+
+.graph-area {
+  fill: #efe9dc;
+  opacity: 0.85;
+}
+
+.graph-line {
+  fill: none;
+  stroke: #c9bfa8;
+  stroke-width: 1.5;
+}
+
+.graph-cursor {
+  stroke: #e8883a;
+  stroke-width: 2;
+}
+
+.right {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto auto;
+  gap: 12px;
+  min-height: 0;
+}
+
+.moves {
+  display: grid;
+  grid-template-columns: 36px 1fr 1fr;
+  gap: 2px 6px;
+  align-content: start;
+  padding: 8px;
+  overflow-y: auto;
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.move-number {
+  padding: 3px 4px;
+  text-align: right;
+  color: var(--muted);
+}
+
+.move {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.move:hover {
+  background: var(--surface-2);
+}
+
+.move[aria-current='true'] {
+  background: var(--current);
+}
+
+.card {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.status {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.no-game .main {
+  visibility: hidden;
+}
+
+.no-game .status {
+  visibility: visible;
+}

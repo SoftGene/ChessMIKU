@@ -1,7 +1,7 @@
 import type { Lookup } from './archive';
 import { showsButton } from './button';
-import { FIND_FINISHED_GAME, panelSearch, type FindFinishedGame } from './messages';
-import { parseGamePage, shownAsOver, type GamePage } from './page';
+import { FIND_FINISHED_GAME, isClosePanel, panelSearch, type FindFinishedGame } from './messages';
+import { boardOrientation, parseGamePage, shownAsOver, type GamePage } from './page';
 
 // Shown by chess.com when a game ends, and on a finished game opened later (seen 22.09.2026).
 // A hint to ask again, and for a game older than the recent archives, chess.com's word that it is over.
@@ -105,8 +105,18 @@ function showButton(page: GamePage) {
   document.body.appendChild(button);
 }
 
-// The panel is an extension page in a frame: its worker can run the engine, and the styles of
-// chess.com and of the panel cannot touch each other.
+// The panel asks to be closed (✕, Esc, a click on the dimmed page): only our own frame is listened to.
+window.addEventListener('message', (event) => {
+  const frame = document.getElementById(PANEL_ID);
+  if (frame instanceof HTMLIFrameElement && event.source === frame.contentWindow && isClosePanel(event.data)) {
+    frame.remove();
+  }
+});
+
+// The panel is an extension page in a frame over the whole page: its worker can run the engine, and the
+// styles of chess.com and of the panel cannot touch each other. "autoplay" lets its sounds play after the
+// click on the button, which happened on this page. The frame has the dark colour scheme of the panel:
+// with another one, Chrome paints the frame opaque and hides the page around the window.
 function togglePanel(page: GamePage) {
   const open = document.getElementById(PANEL_ID);
   if (open) {
@@ -117,7 +127,9 @@ function togglePanel(page: GamePage) {
   const frame = document.createElement('iframe');
   frame.id = PANEL_ID;
   frame.title = 'Chess Review';
-  frame.src = chrome.runtime.getURL('panel.html') + panelSearch(page);
-  frame.style.cssText = 'position: fixed; top: 80px; right: 20px; width: 420px; height: calc(100vh - 160px); z-index: 999999; border: 1px solid #ccc; border-radius: 8px; background: #fff; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);';
+  frame.allow = 'autoplay';
+  frame.src = chrome.runtime.getURL('panel.html') + panelSearch(page, boardOrientation(document));
+  frame.style.cssText = 'position: fixed; inset: 0; width: 100vw; height: 100vh; margin: 0; border: 0; z-index: 2147483647; background: transparent; color-scheme: dark;';
   document.body.appendChild(frame);
+  frame.focus();
 }

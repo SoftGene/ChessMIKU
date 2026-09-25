@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import archive from '../test/fixtures/archive-hikaru-2026-08.json';
 import { analyseGame, type Evaluate } from './analysis';
+import { readGame } from './game';
 import type { Evaluation } from './uci';
 
 const cp = (bestMoveUci: string, value: number): Evaluation => ({ bestMoveUci, score: { cp: value } });
 const mate = (bestMoveUci: string, value: number): Evaluation => ({ bestMoveUci, score: { mate: value } });
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 // A stand-in for the engine: answers positions in the order they are asked, and remembers them.
 function engine(answers: Evaluation[]) {
@@ -20,7 +22,18 @@ function engine(answers: Evaluation[]) {
   return { asked, evaluate };
 }
 
-const FOOLS_MATE = '1. f3 e5 2. g4 Qh4# 0-1';
+// An engine the test answers by hand, in any order.
+function manualEngine() {
+  const asked: string[] = [];
+  const answers: ((evaluation: Evaluation) => void)[] = [];
+  const evaluate: Evaluate = (fen) => {
+    asked.push(fen);
+    return new Promise((answer) => answers.push(answer));
+  };
+  return { asked, answers, evaluate };
+}
+
+const FOOLS_MATE = readGame('1. f3 e5 2. g4 Qh4# 0-1');
 const FOOLS_MATE_ANSWERS = [cp('e2e4', 30), cp('e7e5', 90), cp('g1f3', -100), mate('d8h4', 1)];
 
 describe('analyseGame', () => {
@@ -52,15 +65,10 @@ describe('analyseGame', () => {
   });
 
   it('asks about every position at once and keeps each answer with its position, whatever their order', async () => {
-    const asked: string[] = [];
-    const answers: ((evaluation: Evaluation) => void)[] = [];
-    const evaluate: Evaluate = (fen) => {
-      asked.push(fen);
-      return new Promise((answer) => answers.push(answer));
-    };
+    const { asked, answers, evaluate } = manualEngine();
 
     const analysing = analyseGame(FOOLS_MATE, evaluate);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await settle();
 
     // Several engines can search in parallel only if no search waits for the one before it.
     expect(asked).toHaveLength(4);
@@ -75,6 +83,29 @@ describe('analyseGame', () => {
     ]);
   });
 
+  it('tells each position as it is evaluated: its index, its evaluation, how many are done', async () => {
+    const { answers, evaluate } = manualEngine();
+    const told: [number, string, number, number][] = [];
+    const score = (e: { score: { cp: number } | { mate: number } }) => ('cp' in e.score ? String(e.score.cp) : `#${e.score.mate}`);
+
+    const analysing = analyseGame(FOOLS_MATE, evaluate, (index, evaluation, done, total) => told.push([index, score(evaluation), done, total]));
+    await settle();
+
+    // The final position is checkmate: known at once, without the engine.
+    expect(told).toEqual([[4, '#0', 1, 5]]);
+    for (const i of [2, 0, 3, 1]) {
+      answers[i](FOOLS_MATE_ANSWERS[i]);
+    }
+    await analysing;
+    expect(told).toEqual([
+      [4, '#0', 1, 5],
+      [2, '-100', 2, 5],
+      [0, '30', 3, 5],
+      [3, '#1', 4, 5],
+      [1, '90', 5, 5],
+    ]);
+  });
+
   it('marks a move that delivers checkmate with mateAfter 0', async () => {
     const { evaluate } = engine(FOOLS_MATE_ANSWERS);
 
@@ -84,10 +115,10 @@ describe('analyseGame', () => {
   });
 
   it('scores stalemate after a move as a draw', async () => {
-    const pgn = '[SetUp "1"]\n[FEN "k7/8/1Q6/8/8/8/8/7K w - - 0 1"]\n\n1. Qc7 1/2-1/2';
+    const game = readGame('[SetUp "1"]\n[FEN "k7/8/1Q6/8/8/8/8/7K w - - 0 1"]\n\n1. Qc7 1/2-1/2');
     const { asked, evaluate } = engine([cp('b6b7', 1500)]);
 
-    expect(await analyseGame(pgn, evaluate)).toEqual([
+    expect(await analyseGame(game, evaluate)).toEqual([
       { ply: 1, san: 'Qc7', uci: 'b6c7', bestMoveUci: 'b6b7', evalBeforeCp: 1500, mateBefore: null, evalAfterCp: 0, mateAfter: null },
     ]);
     expect(asked).toEqual(['k7/8/1Q6/8/8/8/8/7K w - - 0 1']);
@@ -96,7 +127,7 @@ describe('analyseGame', () => {
   it('turns a level score after a move into 0, not -0', async () => {
     const { evaluate } = engine([cp('e2e4', 20), cp('e7e5', 0)]);
 
-    const [move] = await analyseGame('1. e4 *', evaluate);
+    const [move] = await analyseGame(readGame('1. e4 *'), evaluate);
 
     expect(move.evalAfterCp).toBe(0);
   });
@@ -105,28 +136,19 @@ describe('analyseGame', () => {
     const castling = engine(Array.from({ length: 8 }, () => cp('a2a3', 0)));
     const promotion = engine([cp('a7a8q', 900), cp('a1b2', -900)]);
 
-    const castled = await analyseGame('1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. O-O *', castling.evaluate);
-    const promoted = await analyseGame('[SetUp "1"]\n[FEN "8/P7/8/8/8/8/8/k6K w - - 0 1"]\n\n1. a8=Q+ *', promotion.evaluate);
+    const castled = await analyseGame(readGame('1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. O-O *'), castling.evaluate);
+    const promoted = await analyseGame(readGame('[SetUp "1"]\n[FEN "8/P7/8/8/8/8/8/k6K w - - 0 1"]\n\n1. a8=Q+ *'), promotion.evaluate);
 
     expect(castled[6]).toMatchObject({ san: 'O-O', uci: 'e1g1' });
     expect(promoted[0]).toMatchObject({ san: 'a8=Q+', uci: 'a7a8q' });
   });
 
-  it('reports progress after each position', async () => {
-    const { evaluate } = engine(FOOLS_MATE_ANSWERS);
-    const progress: [number, number][] = [];
-
-    await analyseGame(FOOLS_MATE, evaluate, (done, total) => progress.push([done, total]));
-
-    expect(progress).toEqual([[1, 5], [2, 5], [3, 5], [4, 5], [5, 5]]);
-  });
-
   it('reads a game as the chess.com archive gives it, clocks and all', async () => {
     // Hikaru - poohineedyou, 45 moves, ended in checkmate: the same game as on the page in the page tests.
-    const game = archive.games.find((g) => g.url.endsWith('/173765478164'))!;
+    const game = readGame(archive.games.find((g) => g.url.endsWith('/173765478164'))!.pgn);
     const { asked, evaluate } = engine(Array.from({ length: 89 }, (_, i) => cp('a2a3', i * 10)));
 
-    const moves = await analyseGame(game.pgn, evaluate);
+    const moves = await analyseGame(game, evaluate);
 
     expect(asked).toHaveLength(89);
     expect(moves).toHaveLength(89);
@@ -138,14 +160,8 @@ describe('analyseGame', () => {
   it('gives no evaluations for a game without moves and asks nothing', async () => {
     const { asked, evaluate } = engine([]);
 
-    expect(await analyseGame('[Event "Aborted"]\n\n*', evaluate)).toEqual([]);
+    expect(await analyseGame(readGame('[Event "Aborted"]\n\n*'), evaluate)).toEqual([]);
     expect(asked).toEqual([]);
-  });
-
-  it('fails on a PGN with an impossible move', async () => {
-    const { evaluate } = engine(FOOLS_MATE_ANSWERS);
-
-    await expect(analyseGame('1. e4 e5 2. Ke3 *', evaluate)).rejects.toThrow(/could not be read/);
   });
 
   it('fails when the engine fails', async () => {

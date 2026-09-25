@@ -1,17 +1,18 @@
-import { analyseGame, type MoveEvaluation } from './analysis';
+import { analyseGame, type MoveEvaluation, type PositionEvaluation } from './analysis';
 import type { Lookup } from './archive';
 import { EngineError, type SearchLimit } from './engine';
+import { readGame, type Game } from './game';
 import type { GamePage } from './page';
 import type { Evaluation } from './uci';
 
-/** What the panel shows while it reviews a game. */
+/** What the window shows while it reviews a game. */
 export type ReviewState =
   | { stage: 'looking-up' }
   | { stage: 'not-found' }
-  | { stage: 'starting-engine' }
-  | { stage: 'engine-failed'; reason: string }
-  | { stage: 'analysing'; done: number; total: number }
-  | { stage: 'done'; moves: MoveEvaluation[] }
+  | { stage: 'starting-engine'; game: Game }
+  | { stage: 'engine-failed'; game: Game; reason: string }
+  | { stage: 'analysing'; game: Game; index: number; evaluation: PositionEvaluation; done: number; total: number }
+  | { stage: 'done'; game: Game; moves: MoveEvaluation[] }
   | { stage: 'failed'; reason: string };
 
 /** The part of the engine a review needs. */
@@ -38,18 +39,22 @@ export async function runReview(page: GamePage, deps: ReviewDeps, show: (state: 
       return;
     }
 
-    show({ stage: 'starting-engine' });
+    // The window shows the game while the engine starts and evaluates it.
+    const game = readGame(lookup.pgn);
+    show({ stage: 'starting-engine', game });
     try {
       engine = await deps.startEngine();
     } catch (error) {
-      show({ stage: 'engine-failed', reason: error instanceof EngineError ? error.reason : reasonOf(error) });
+      show({ stage: 'engine-failed', game, reason: error instanceof EngineError ? error.reason : reasonOf(error) });
       return;
     }
 
     await engine.newGame();
     const running = engine;
-    const moves = await analyseGame(lookup.pgn, (fen) => running.evaluate(fen, deps.limit), (done, total) => show({ stage: 'analysing', done, total }));
-    show({ stage: 'done', moves });
+    const moves = await analyseGame(game, (fen) => running.evaluate(fen, deps.limit), (index, evaluation, done, total) =>
+      show({ stage: 'analysing', game, index, evaluation, done, total }),
+    );
+    show({ stage: 'done', game, moves });
   } catch (error) {
     show({ stage: 'failed', reason: reasonOf(error) });
   } finally {
