@@ -14,14 +14,18 @@ import { renderEvalBar } from './eval-bar';
 import { createEvalCache, type CacheStore } from './eval-cache';
 import { sideToMove, toWhiteEval, type WhiteEval } from './eval-display';
 import { graphTip, graphX, positionAtX, renderGraph } from './eval-graph';
-import { fenAt, type Game } from './game';
+import { fenAt, type Game, type Ply } from './game';
 import { renderKeyMoments } from './key-moments';
 import { readLanguage, writeLanguage } from './language';
+import { endingOf, legalDests, readDrop } from './legal-moves';
+import { createLineEngine } from './line-engine';
+import { lineEval, linesState, renderLine } from './line-view';
 import { CLOSE_PANEL, FIND_FINISHED_GAME, readOrientation, readPanelSearch, type FindFinishedGame } from './messages';
 import { isPlayerInfoMessage, NO_INFO, PLAYER_INFO, readPlayerInfo, type PlayerInfo, type PlayerInfoMessage } from './player-info';
 import { renderPlayer, type PlayerView } from './players';
 import { buildMoveList, markCurrentMove, setMoveClasses } from './move-list';
-import { keyAction, navigate, type NavAction } from './navigation';
+import { backToGame, keyAction, movePlace, playMove, positionAt, type NavAction, type Place } from './navigation';
+import { showPromotion, type PromotionChoice } from './promotion';
 import { startReplay } from './replay';
 import { runReview, type ReviewState } from './review';
 import { createWindow, setPressed, showHeaders, showLanguage } from './review-window';
@@ -45,7 +49,7 @@ const START_TIMEOUT_MS = 10_000;
 
 const page = readPanelSearch(location.search);
 let orientation = readOrientation(location.search);
-const parts = createWindow(document.getElementById('review')!, { close, flip, toggleHints, toggleSound, navigate: go, setLanguage, backToGame: () => undefined });
+const parts = createWindow(document.getElementById('review')!, { close, flip, toggleHints, toggleSound, navigate: go, setLanguage, backToGame: leaveLine });
 const board = createBoard(parts.board, orientation);
 const sounds = createSounds();
 let hints = readSetting('hints');
@@ -58,7 +62,11 @@ showLanguage(parts, language);
 parts.root.querySelector<HTMLElement>('.window')?.focus();
 
 let game: Game | null = null;
-let ply = 0;
+// The position shown: of the game, or of the player's own line (T7.2).
+let place: Place = { ply: 0, line: null };
+// The review is over: the player may move pieces.
+let playable = false;
+let promotion: PromotionChoice | null = null;
 const evals: (WhiteEval | undefined)[] = [];
 const bestMoves: (string | undefined)[] = [];
 const classes = new Map<number, string>();
@@ -78,6 +86,16 @@ const backend = createBackendReview(
   language,
 );
 
+// The player's line has an engine of its own, one, with two lines: the review's engines are gone by then (and a
+// game from the store never starts them). 0.5 s a position (design of the free play, section 5).
+const LINE_LIMIT: SearchLimit = { movetime: 500 };
+const lineEngine = createLineEngine(startLineEngine, LINE_LIMIT, (fen) => {
+  if (game && place.line && positionAt(place, game).fen === fen) {
+    render(false);
+  }
+});
+board.onDrop(onDrop);
+
 // The engine's evaluations of games reviewed before: opening one again needs neither the archive nor the engine.
 const cacheStore: CacheStore = {
   get: (keys) => chrome.storage.local.get(keys),
@@ -91,6 +109,13 @@ document.addEventListener('keydown', (event) => {
     return;
   }
   event.preventDefault();
+  // While the pieces of a promotion are offered, Esc closes only them, and the other keys wait.
+  if (promotion) {
+    if (action === 'close') {
+      promotion.cancel();
+    }
+    return;
+  }
   if (action === 'close') {
     close();
   } else {
@@ -121,7 +146,7 @@ parts.graph.addEventListener('mouseleave', () => {
 
 parts.graph.addEventListener('click', (event) => {
   if (game) {
-    stopReplay();
+    interrupt();
     show(positionAtX(event.offsetX, parts.graph.clientWidth, game.plies.length), false);
   }
 });
@@ -144,9 +169,7 @@ export function showClassifications(list: MoveClassification[]): void {
     classes.set(at, classification);
   }
   setMoveClasses(parts.moves, classes);
-  if (game) {
-    show(ply, false);
-  }
+  render(false);
 }
 
 function onState(state: ReviewState, externalGameId: string) {
@@ -161,6 +184,8 @@ function onState(state: ReviewState, externalGameId: string) {
   if (state.stage === 'engine-failed') {
     stopReplay();
     showCard({ kind: 'no-engine' });
+    playable = true;
+    render(false);
   }
   if (state.stage === 'done') {
     if (state.cached) {
@@ -168,6 +193,9 @@ function onState(state: ReviewState, externalGameId: string) {
       show(state.game.plies.length, false);
     }
     showAccuracy(state.game);
+    // The review's engines are done: the player's moves come now.
+    playable = true;
+    render(false);
     void backend.start({ externalGameId, pgn: state.pgn, moves: state.moves });
   }
   if ((state.stage === 'not-found' || state.stage === 'failed') && !game) {
@@ -199,9 +227,9 @@ function begin(started: Game, withReplay: boolean) {
 
 // A click on a move or on a key moment: the board goes there.
 function select(at: number) {
-  stopReplay();
+  interrupt();
   show(at, true);
-  playMoveSound(at);
+  playMoveSound();
 }
 
 function record(index: number, evaluation: PositionEvaluation) {
@@ -211,8 +239,8 @@ function record(index: number, evaluation: PositionEvaluation) {
   evals[index] = toWhiteEval(evaluation.score, sideToMove(fenAt(game, index)));
   bestMoves[index] = evaluation.bestMoveUci;
   drawGraph();
-  if (index === ply) {
-    show(ply, false);
+  if (index === place.ply && !place.line) {
+    render(false);
   }
 }
 
@@ -225,31 +253,50 @@ function evaluatedUpTo(): number {
   return at - 1;
 }
 
+// The game's position after `at` half-moves.
 function show(at: number, animate: boolean) {
+  place = { ply: at, line: null };
+  render(animate);
+}
+
+// Everything at the place shown: board, bar, list, graph, the player's line, card.
+function render(animate: boolean) {
   if (!game) {
     return;
   }
-  ply = at;
-  const move = at > 0 ? game.plies[at - 1] : undefined;
-  const best = bestMoves[at];
+  const { fen, move } = positionAt(place, game);
+  const ending = endingOf(fen);
+  const lines = place.line && !ending ? lineEngine.lines(fen) : undefined;
+  const best = place.line ? lines?.[0]?.moveUci : bestMoves[place.ply];
   board.show(
     {
-      fen: fenAt(game, at),
+      fen,
       lastMove: move ? [move.from, move.to] : undefined,
       check: Boolean(move && (move.check || move.mate)),
-      mark: classes.get(at),
-      hint: best ? [best.slice(0, 2), best.slice(2, 4)] : undefined,
+      // Classes are the game's: a move of the line has none.
+      mark: place.line && place.line.at > 0 ? undefined : classes.get(place.ply),
+      hint: squares(best),
+      second: squares(place.line ? lines?.[1]?.moveUci : undefined),
     },
-    { animate, hints },
+    { animate, hints, movable: playable && !promotion ? { color: sideToMove(fen) === 'w' ? 'white' : 'black', dests: legalDests(fen) } : null },
   );
-  renderEvalBar(parts.evalBar, evals[at], orientation);
-  markCurrentMove(parts.moves, at);
+  renderEvalBar(parts.evalBar, place.line ? lineEval(fen, ending, lines) : evals[place.ply], orientation);
+  markCurrentMove(parts.moves, place.ply);
+  showHeaders(parts, game.headers, place.line ? fenAt(game, place.ply).split(' ')[5] : null);
+  parts.line.hidden = !place.line;
+  if (place.line) {
+    renderLine(parts.line, { fen, moves: place.line.moves, at: place.line.at, engine: linesState(ending, lines, hints) }, goInLine);
+  }
   drawGraph();
   renderCard();
 }
 
+function squares(uci: string | undefined): [string, string] | undefined {
+  return uci ? [uci.slice(0, 2), uci.slice(2, 4)] : undefined;
+}
+
 function drawGraph() {
-  renderGraph(parts.graph, evals, ply, classes, { width: parts.graph.clientWidth, height: parts.graph.clientHeight }, hover);
+  renderGraph(parts.graph, evals, place.ply, classes, { width: parts.graph.clientWidth, height: parts.graph.clientHeight }, hover);
 }
 
 // The players from the PGN at once; their avatars and titles when the service worker has them.
@@ -287,13 +334,15 @@ function showCard(state: CardState) {
 
 function renderCard() {
   if (game) {
-    renderKeyMoments(parts.card, card, { language, game, classes, current: ply, onSelect: select });
+    renderKeyMoments(parts.card, card, { language, game, classes, current: place.ply, onSelect: select });
   }
 }
 
-function playMoveSound(at: number) {
-  if (game && at > 0) {
-    void sounds.play(soundOf(game.plies[at - 1]));
+// The sound of the move that led to the place shown, in the game or in the line.
+function playMoveSound() {
+  const move = game ? positionAt(place, game).move : undefined;
+  if (move) {
+    void sounds.play(soundOf(move));
   }
 }
 
@@ -301,17 +350,84 @@ function go(action: NavAction) {
   if (!game) {
     return;
   }
-  stopReplay();
-  const next = navigate(ply, game.plies.length, action);
-  if (next !== ply) {
-    show(next, true);
-    playMoveSound(next);
+  interrupt();
+  const next = movePlace(place, game, action);
+  if (next.ply !== place.ply || next.line?.at !== place.line?.at) {
+    place = next;
+    render(true);
+    playMoveSound();
   }
+}
+
+// A piece dropped on the board: chess.js judges it.
+function onDrop(from: string, to: string) {
+  if (!game) {
+    return;
+  }
+  const { fen } = positionAt(place, game);
+  const drop = readDrop(fen, from, to);
+  if (drop.kind === 'move') {
+    play(drop.ply);
+  } else if (drop.kind === 'promote') {
+    promotion = showPromotion(parts.board, to, sideToMove(fen) === 'w' ? 'white' : 'black', orientation, (piece) => {
+      promotion = null;
+      const chosen = piece ? readDrop(fen, from, to, piece) : null;
+      if (chosen?.kind === 'move') {
+        play(chosen.ply);
+      } else {
+        render(true);
+      }
+    });
+  } else if (drop.kind === 'reselect') {
+    render(false);
+    board.select(to);
+  } else {
+    render(true);
+    void sounds.play('illegal');
+  }
+}
+
+function play(move: Ply) {
+  if (!game) {
+    return;
+  }
+  stopReplay();
+  place = playMove(place, game, move);
+  render(true);
+  void sounds.play(soundOf(move));
+}
+
+// A move of the line clicked.
+function goInLine(at: number) {
+  if (place.line) {
+    interrupt();
+    place = { ply: place.ply, line: { moves: place.line.moves, at } };
+    render(true);
+    playMoveSound();
+  }
+}
+
+function leaveLine() {
+  interrupt();
+  place = backToGame(place);
+  render(true);
+}
+
+// The replay and an open choice of a promotion end when the player goes elsewhere.
+function interrupt() {
+  stopReplay();
+  promotion?.cancel();
 }
 
 function stopReplay() {
   replay?.stop();
   replay = null;
+}
+
+async function startLineEngine(): Promise<UciEngine> {
+  const engine = await UciEngine.start(startWorker, { startTimeoutMs: START_TIMEOUT_MS });
+  await engine.setOption('MultiPV', 2);
+  return engine;
 }
 
 function close() {
@@ -320,15 +436,17 @@ function close() {
 }
 
 function flip() {
+  // The pieces of a promotion stand where the board was: they go first.
+  promotion?.cancel();
   orientation = board.flip();
-  renderEvalBar(parts.evalBar, evals[ply], orientation);
+  render(false);
 }
 
 function toggleHints() {
   hints = !hints;
   writeSetting('hints', hints);
   setPressed(parts.hints, hints);
-  show(ply, false);
+  render(false);
 }
 
 function toggleSound() {
