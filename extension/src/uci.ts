@@ -15,23 +15,40 @@ export interface EngineLine {
 
 const UCI_MOVE = /^[a-h][1-8][a-h][1-8][qrbn]?$/;
 
-/** The lines of one `go` with MultiPV, best first: for each, its last complete report (bounds are skipped). */
+/**
+ * The lines of one `go` with MultiPV, best first, all from one depth: the deepest at which each line has a complete
+ * report. Lines of different depths can name the same move: the first line changes its mind at a depth where the
+ * second has only a bound (lowerbound, upperbound), which is skipped.
+ */
 export function readLines(lines: readonly string[]): EngineLine[] {
-  const found = new Map<number, EngineLine>();
+  const byDepth = new Map<number, Map<number, EngineLine>>();
+  let count = 0;
   for (const line of lines) {
     const words = line.trim().split(/\s+/);
-    if (words[0] !== 'info' || words.includes('lowerbound') || words.includes('upperbound')) {
+    const score = words[0] === 'info' ? scoreOf(words) : null;
+    if (!score) {
       continue;
     }
-    const score = scoreOf(words);
-    const pv = words.indexOf('pv');
-    const moveUci = pv >= 0 ? words[pv + 1] : undefined;
-    if (score && moveUci && UCI_MOVE.test(moveUci)) {
-      const multipv = words.indexOf('multipv');
-      found.set(multipv >= 0 ? Number.parseInt(words[multipv + 1], 10) : 1, { moveUci, score });
+    const index = numberAfter(words, 'multipv') ?? 1;
+    count = Math.max(count, index);
+    const moveUci = words[words.indexOf('pv') + 1];
+    const depth = numberAfter(words, 'depth');
+    if (words.includes('lowerbound') || words.includes('upperbound') || !words.includes('pv') || !UCI_MOVE.test(moveUci ?? '') || depth === null) {
+      continue;
     }
+    const atDepth = byDepth.get(depth) ?? new Map<number, EngineLine>();
+    atDepth.set(index, { moveUci, score });
+    byDepth.set(depth, atDepth);
   }
-  return [...found.entries()].sort(([a], [b]) => a - b).map(([, line]) => line);
+  const deepest = [...byDepth.entries()].sort(([a], [b]) => b - a).find(([, found]) => found.size === count);
+  return deepest ? [...deepest[1].entries()].sort(([a], [b]) => a - b).map(([, line]) => line) : [];
+}
+
+// The whole number after a word of an `info` line: "depth 12", "multipv 2".
+function numberAfter(words: string[], word: string): number | null {
+  const at = words.indexOf(word);
+  const value = at >= 0 ? Number.parseInt(words[at + 1], 10) : Number.NaN;
+  return Number.isInteger(value) ? value : null;
 }
 
 /** The result of one `go`, read from the lines the engine printed for it. */

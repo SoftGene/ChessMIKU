@@ -72,7 +72,7 @@ describe('readSearch', () => {
   });
 });
 
-// Stockfish 19 with MultiPV 2: each depth reports both lines; the last complete report of each counts.
+// Stockfish 19 with MultiPV 2: each depth reports both lines; the deepest depth complete for both counts.
 const TWO_LINES = [
   'info string NNUE evaluation using nn-37f18f62d772.nnue enabled',
   'info depth 10 seldepth 13 multipv 1 score cp 35 nodes 12000 nps 400000 hashfull 3 tbhits 0 time 30 pv e2e4 e7e5 g1f3',
@@ -85,10 +85,27 @@ const TWO_LINES = [
 ];
 
 describe('readLines', () => {
-  it('takes the last complete report of each line, best first', () => {
+  it('takes the lines of the deepest complete depth, skipping bounds, best first', () => {
     expect(readLines(TWO_LINES)).toEqual([
       { moveUci: 'e2e4', score: { cp: 31 } },
       { moveUci: 'g1f3', score: { cp: 24 } },
+    ]);
+  });
+
+  // Stockfish 19 after 1. e4 e5 2. Nf3 Nc6 (the bench, 25.09): at depth 17 the first line turned to Bb5 while the
+  // second had only a bound, so the last complete reports of each were both Bb5.
+  it('takes both lines from the deepest depth that has a complete report of each', () => {
+    const lines = [
+      'info depth 16 seldepth 29 multipv 1 score cp 32 nodes 900000 nps 1000000 hashfull 300 tbhits 0 time 450 pv d2d4 e5d4 f3d4',
+      'info depth 16 seldepth 29 multipv 2 score cp 28 nodes 900000 nps 1000000 hashfull 300 tbhits 0 time 450 pv f1b5 a7a6 b5a4',
+      'info depth 17 seldepth 33 multipv 1 score cp 27 nodes 990000 nps 1000000 hashfull 330 tbhits 0 time 495 pv f1b5 a7a6 b5a4',
+      'info depth 17 seldepth 28 multipv 2 score cp 24 upperbound nodes 990000 nps 1000000 hashfull 330 tbhits 0 time 499 pv d2d4 e5d4',
+      'bestmove f1b5 ponder a7a6',
+    ];
+
+    expect(readLines(lines)).toEqual([
+      { moveUci: 'd2d4', score: { cp: 32 } },
+      { moveUci: 'f1b5', score: { cp: 28 } },
     ]);
   });
 
