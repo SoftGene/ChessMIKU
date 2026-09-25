@@ -24,7 +24,8 @@ describe('icons', () => {
     expect(moveIcon('blunder')).toContain('aria-label="Blunder"');
   });
 
-  it.each(['inaccuracy', 'mistake', 'blunder'])('draws the marks of %s as tall as the others, centred in the circle', (cls) => {
+  it.each(['inaccuracy', 'mistake', 'blunder', 'great', 'brilliant'])('draws the marks of %s as tall as the others, centred in the circle', (cls) => {
+    expect(glyphBox(cls)).not.toBeNull();
     const box = glyphBox(cls)!;
     const single = glyphBox('mistake')!;
 
@@ -49,6 +50,14 @@ describe('icons', () => {
     expect(moveIcon('inaccuracy')).toContain('d="M16.2 6.8v7.2"');
   });
 
+  it.each([['great', '#5b8bd6', ['exclaim']], ['brilliant', '#26b5a8', ['exclaim', 'exclaim']]] as const)(
+    'draws %s ahead of the backend: its colour and its exclamation marks',
+    (cls, color, marks) => {
+      expect(classColor(cls)).toBe(color);
+      expect([...(moveIcon(cls) ?? '').matchAll(/data-mark="(\w+)"/g)].map((m) => m[1])).toEqual(marks);
+    },
+  );
+
   it('gives the book its spine', () => {
     expect(moveIcon('book')).toContain('d="M12 8.3v8.4"');
   });
@@ -62,7 +71,7 @@ describe('icons', () => {
     expect(squareMark('best')).toMatch(/^<g transform="translate\(60 -4\) scale\(1\.75\)">/);
   });
 
-  it.each(['brilliant', 'great', '<script>'])('has no icon for a class it does not know: %s', (cls) => {
+  it.each(['forced', 'genius', '<script>'])('has no icon for a class it does not know: %s', (cls) => {
     expect(moveIcon(cls)).toBeNull();
     expect(squareMark(cls)).toBeNull();
     expect(classColor(cls)).toBeNull();

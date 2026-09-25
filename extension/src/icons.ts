@@ -1,5 +1,8 @@
-/** The classes of moves the backend sends (contracts/api.yaml, Classification). */
-export type MoveClass = 'best' | 'excellent' | 'good' | 'book' | 'inaccuracy' | 'mistake' | 'miss' | 'blunder';
+/**
+ * The classes of moves the backend sends (contracts/api.yaml, Classification), and great and brilliant, drawn
+ * ahead of it: the backend is to give them after v1.
+ */
+export type MoveClass = 'best' | 'excellent' | 'good' | 'book' | 'inaccuracy' | 'mistake' | 'miss' | 'blunder' | 'great' | 'brilliant';
 
 // Each icon is a circle of its colour with a white symbol, drawn on a 24 × 24 grid. The symbols and
 // colours follow what players know from chess.com; the drawings are our own.
@@ -27,6 +30,8 @@ const MARKS: Partial<Record<MoveClass, [Mark, number][]>> = {
   inaccuracy: [['question', 10.1], ['exclaim', 16.2]],
   mistake: [['question', 12]],
   blunder: [['question', 8], ['question', 16]],
+  great: [['exclaim', 12]],
+  brilliant: [['exclaim', 9.8], ['exclaim', 14.2]],
 };
 const marks = (cls: MoveClass) => (MARKS[cls] ?? []).map(([mark, cx]) => drawMark(mark, cx)).join('');
 
@@ -39,6 +44,8 @@ export const MOVE_CLASSES: Record<MoveClass, { label: string; color: string; sym
   mistake: { label: 'Mistake', color: '#e8883a', symbol: marks('mistake') },
   miss: { label: 'Miss', color: '#e05a6b', symbol: cross },
   blunder: { label: 'Blunder', color: '#d93b3b', symbol: marks('blunder') },
+  great: { label: 'Great', color: '#5b8bd6', symbol: marks('great') },
+  brilliant: { label: 'Brilliant', color: '#26b5a8', symbol: marks('brilliant') },
 };
 
 // A class from the backend the extension does not know yet is shown without an icon (contract, decision 4).

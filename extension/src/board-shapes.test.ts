@@ -32,7 +32,7 @@ describe('boardShapes', () => {
   });
 
   it('draws no class the extension does not know', () => {
-    expect(boardShapes({ ...AFTER_E4, mark: 'brilliant' }, true)).toEqual([{ orig: 'c7', dest: 'c5', brush: 'hint' }]);
+    expect(boardShapes({ ...AFTER_E4, mark: 'forced' }, true)).toEqual([{ orig: 'c7', dest: 'c5', brush: 'hint' }]);
   });
 
   it('draws no class at the start, where no move was played', () => {

@@ -49,7 +49,7 @@ describe('the move list', () => {
   it('puts the icon of each class before its move', () => {
     buildMoveList(list, FOOLS_MATE, () => {});
 
-    setMoveClasses(list, new Map([[1, 'mistake'], [4, 'best'], [2, 'brilliant']]));
+    setMoveClasses(list, new Map([[1, 'mistake'], [4, 'best'], [2, 'forced']]));
 
     const icons = [...list.querySelectorAll('button.move')].map((b) => b.querySelector('svg')?.getAttribute('aria-label') ?? null);
     expect(icons).toEqual(['Mistake', null, null, 'Best']);
