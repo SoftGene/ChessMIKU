@@ -14,6 +14,7 @@ beforeEach(() => {
     toggleSound: vi.fn(),
     navigate: vi.fn(),
     setLanguage: vi.fn(),
+    backToGame: vi.fn(),
   });
 });
 
