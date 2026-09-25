@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { endingOf, legalDests, readDrop } from './legal-moves';
+import { endingOf, legalDests, mateSquares, readDrop } from './legal-moves';
 
 const START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 const PROMOTION = '8/4P3/8/8/8/8/k7/4K3 w - - 0 1';
@@ -96,5 +96,13 @@ describe('endingOf', () => {
     expect(endingOf('R5k1/5ppp/8/8/8/8/8/6K1 b - - 1 1')).toBe('checkmate');
     expect(endingOf('7k/5Q2/6K1/8/8/8/8/8 b - - 0 1')).toBe('stalemate');
     expect(endingOf(START)).toBeNull();
+  });
+});
+
+describe('mateSquares', () => {
+  it("finds the mated king's square and the winner's", () => {
+    expect(mateSquares('R5k1/5ppp/8/8/8/8/8/6K1 b - - 1 1')).toEqual({ mated: 'g8', winner: 'g1' });
+    expect(mateSquares('rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3')).toEqual({ mated: 'e1', winner: 'e8' });
+    expect(mateSquares(START)).toBeNull();
   });
 });
