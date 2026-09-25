@@ -71,6 +71,12 @@ describe('the built extension', () => {
     expect(schemes(await read('content.js'))).toEqual(panel);
   });
 
+  it('has the move sounds inside the panel script: no file to load, no fetch', async () => {
+    const code = await read(await panelScript());
+
+    expect(code.match(/data:audio\/ogg;base64,/g)).toHaveLength(3);
+  });
+
   it('ships the engine the panel starts, with its license', async () => {
     const wasm = await readFile(join(dist, 'engine/stockfish-19-lite-single.wasm'));
 

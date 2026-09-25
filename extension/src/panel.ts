@@ -18,7 +18,7 @@ import { startReplay } from './replay';
 import { runReview, type ReviewState } from './review';
 import { createWindow, setPressed, showHeaders } from './review-window';
 import { readSetting, writeSetting } from './settings';
-import { createSounds, soundOf } from './sounds';
+import { createSounds, soundsOf } from './sounds';
 import { statusText } from './status';
 
 // The panel is an extension page inside the chess.com page (the content script embeds it). A worker
@@ -126,7 +126,7 @@ function begin(started: Game) {
     isReady: (at) => evaluatedUpTo() >= at,
     show: (at) => {
       show(at, true);
-      sounds.play('tick');
+      void sounds.play('tick');
     },
     done: () => {
       replay = null;
@@ -179,7 +179,7 @@ function show(at: number, animate: boolean) {
 
 function playMoveSound(at: number) {
   if (game && at > 0) {
-    sounds.play(soundOf(game.plies[at - 1]));
+    void sounds.play(...soundsOf(game.plies[at - 1]));
   }
 }
 

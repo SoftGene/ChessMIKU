@@ -1,102 +1,95 @@
+import captureUrl from './assets/sounds/capture.ogg?inline';
+import moveUrl from './assets/sounds/move.ogg?inline';
+import tickUrl from './assets/sounds/tick.ogg?inline';
 import type { Ply } from './game';
 
 export type SoundKind = 'move' | 'capture' | 'castle' | 'check' | 'mate' | 'illegal' | 'tick';
 
-/** The sound of a half-move: mate over check over castling over a capture over a plain move. */
-export function soundOf(ply: Ply): SoundKind {
-  return ply.mate ? 'mate' : ply.check ? 'check' : ply.castle ? 'castle' : ply.capture ? 'capture' : 'move';
+/**
+ * The sounds that fit a half-move, the most telling first: mate or check, then castling, then the knock
+ * of a capture or a plain move. A kind with no sound yet gives way to the next one.
+ */
+export function soundsOf(ply: Ply): SoundKind[] {
+  const kinds: SoundKind[] = [];
+  if (ply.mate) {
+    kinds.push('mate');
+  } else if (ply.check) {
+    kinds.push('check');
+  }
+  if (ply.castle) {
+    kinds.push('castle');
+  }
+  kinds.push(ply.capture ? 'capture' : 'move');
+  return kinds;
 }
 
 export interface Sounds {
-  play(kind: SoundKind): void;
+  /** Plays the first of the kinds that has a sound. */
+  play(...kinds: SoundKind[]): Promise<void>;
   setEnabled(on: boolean): void;
 }
 
-interface Knock {
-  freq: number;
-  q: number;
-  gain: number;
-  decay: number;
-}
+// Knocks of a wooden piece, cut from a CC0 recording and chosen by ear by Pavel (assets/sounds/README.md).
+// They are in the script itself: the panel reads no files and goes to no network.
+const RECORDINGS = { move: moveUrl, capture: captureUrl, tick: tickUrl };
+type Recording = keyof typeof RECORDINGS;
 
-/**
- * Wooden sounds made by Web Audio, no files: a burst of noise through a band-pass filter with a fast decay
- * (wood on wood), a soft tone for check and mate. Picked by ear with Pavel on bench/sounds.html.
- */
-export function createSounds(): Sounds {
+// What each kind plays: recordings with their delay in seconds and their volume. Check, mate and the
+// refused move have no sounds of their own yet.
+const KINDS: Partial<Record<SoundKind, [Recording, number, number][]>> = {
+  move: [['move', 0, 1]],
+  capture: [['capture', 0, 1]],
+  castle: [
+    ['move', 0, 1],
+    ['move', 0.14, 1],
+  ],
+  tick: [['tick', 0, 0.35]],
+};
+
+export function createSounds(audio: () => AudioContext = () => new AudioContext()): Sounds {
   let context: AudioContext | null = null;
+  let buffers: Promise<Record<Recording, AudioBuffer>> | null = null;
   let enabled = true;
-  const audio = () => (context ??= new AudioContext());
 
-  const knock = (at: number, { freq, q, gain, decay }: Knock) => {
-    const a = audio();
-    const length = Math.ceil(a.sampleRate * decay);
-    const buffer = a.createBuffer(1, length, a.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < length; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.exp((-6 * i) / length);
-    }
-    const source = a.createBufferSource();
-    source.buffer = buffer;
-    const filter = a.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.value = freq;
-    filter.Q.value = q;
-    const volume = a.createGain();
-    volume.gain.value = gain;
-    source.connect(filter).connect(volume).connect(a.destination);
-    source.start(at);
-  };
-
-  const tone = (at: number, freq: number, duration: number, gain: number) => {
-    const a = audio();
-    const oscillator = a.createOscillator();
-    oscillator.frequency.value = freq;
-    const volume = a.createGain();
-    volume.gain.setValueAtTime(gain, at);
-    volume.gain.exponentialRampToValueAtTime(0.0001, at + duration);
-    oscillator.connect(volume).connect(a.destination);
-    oscillator.start(at);
-    oscillator.stop(at + duration);
-  };
-
-  const wood: Knock = { freq: 1200, q: 4, gain: 0.9, decay: 0.08 };
-  const recipes: Record<SoundKind, (at: number) => void> = {
-    move: (at) => knock(at, wood),
-    capture: (at) => {
-      knock(at, { freq: 900, q: 3, gain: 1.2, decay: 0.1 });
-      knock(at + 0.02, { freq: 1600, q: 5, gain: 0.6, decay: 0.06 });
-    },
-    castle: (at) => {
-      knock(at, wood);
-      knock(at + 0.09, wood);
-    },
-    check: (at) => {
-      knock(at, wood);
-      tone(at + 0.03, 880, 0.18, 0.12);
-    },
-    mate: (at) => {
-      knock(at, { freq: 900, q: 3, gain: 1.2, decay: 0.1 });
-      tone(at + 0.05, 660, 0.4, 0.15);
-      tone(at + 0.05, 990, 0.4, 0.08);
-    },
-    illegal: (at) => knock(at, { freq: 300, q: 1.5, gain: 0.7, decay: 0.12 }),
-    tick: (at) => knock(at, { freq: 2200, q: 6, gain: 0.25, decay: 0.03 }),
-  };
+  // Made at the first sound: before a click the browser would hold the audio anyway.
+  const decoded = (a: AudioContext) =>
+    (buffers ??= Promise.all(
+      Object.entries(RECORDINGS).map(async ([name, url]) => [name, await a.decodeAudioData(bytes(url))] as const),
+    ).then((pairs) => Object.fromEntries(pairs) as Record<Recording, AudioBuffer>));
 
   return {
-    play(kind) {
-      if (!enabled) {
+    async play(...kinds) {
+      const plan = kinds.map((kind) => KINDS[kind]).find(Boolean);
+      if (!enabled || !plan) {
         return;
       }
-      const a = audio();
+      const a = (context ??= audio());
       if (a.state === 'suspended') {
         void a.resume();
       }
-      recipes[kind](a.currentTime);
+      const recordings = await decoded(a);
+      const now = a.currentTime;
+      for (const [recording, delay, volume] of plan) {
+        const source = a.createBufferSource();
+        source.buffer = recordings[recording];
+        const gain = a.createGain();
+        gain.gain.value = volume;
+        source.connect(gain).connect(a.destination);
+        source.start(now + delay);
+      }
     },
     setEnabled(on) {
       enabled = on;
     },
   };
+}
+
+// A data: address to the bytes it holds.
+function bytes(dataUrl: string): ArrayBuffer {
+  const text = atob(dataUrl.slice(dataUrl.indexOf(',') + 1));
+  const out = new Uint8Array(text.length);
+  for (let i = 0; i < text.length; i++) {
+    out[i] = text.charCodeAt(i);
+  }
+  return out.buffer;
 }
