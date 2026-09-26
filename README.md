@@ -4,15 +4,14 @@ Free post-game review for finished chess.com games: a browser extension analyses
 Stockfish in your own browser, and a .NET backend stores the review and turns the engine numbers
 into plain-language explanations.
 
-Status: design done, implementation starting. See
-`docs/superpowers/specs/2026-09-20-chess-review-design.md`.
+Status: version 1, for the author and friends.
 
 ## How it works
 
 1. The extension adds a review button to a finished game on chess.com.
 2. Stockfish (WebAssembly) evaluates every move in the user's browser.
-3. The backend classifies the moves the way chess.com does (best, excellent, good, book,
-   inaccuracy, mistake, miss, blunder), stores the game in MS SQL and asks a language model to
+3. The backend classifies the moves the way chess.com does (brilliant, great, best, excellent,
+   good, book, inaccuracy, mistake, miss, blunder), stores the game in MS SQL and asks a language model to
    explain the three worst moments.
 4. The panel shows the evaluation graph, move badges and an interactive board with the engine's
    best-move arrow.
@@ -23,6 +22,29 @@ The engine only analyses games that are already over. The extension never helps 
 
 - Extension: TypeScript, Manifest V3, chessground, chess.js, stockfish.wasm
 - Backend: .NET 10, ASP.NET Core, EF Core, MS SQL, xUnit, Docker
+
+## Install the extension
+
+Needs Node.js 24 and Chrome (or another Chromium browser).
+
+```bash
+npm --prefix extension ci
+CHESS_REVIEW_API=https://review.example.org npm --prefix extension run build
+```
+
+`CHESS_REVIEW_API` is the backend the extension asks, an `https://` origin. Without it the build
+asks the local backend, `http://127.0.0.1:8080`. The address goes into the service worker and into
+the host permissions of `extension/dist/manifest.json`.
+
+Then in Chrome:
+
+1. Open `chrome://extensions` and switch on **Developer mode**.
+2. **Load unpacked** and choose `extension/dist`.
+3. Open a finished game on chess.com (`https://www.chess.com/game/live/...`) and press
+   **Review game**.
+
+After a new build, press the reload button on the extension's card. To give the extension to a
+friend, zip `extension/dist`: they unzip it and load the folder the same way.
 
 ## Run the backend
 
@@ -65,6 +87,31 @@ dotnet user-secrets set Gemini:ApiKey "<key>" --project backend/ChessReview.Api
 
 The tests need Docker as well: `dotnet test backend/ChessReview.sln` starts SQL Server in
 containers.
+
+## Run on the home server
+
+The server runs the same compose file plus `docker-compose.tunnel.yml`: cloudflared connects out to
+Cloudflare, and Cloudflare serves the API over HTTPS. The server opens no ports.
+
+1. In Cloudflare Zero Trust, **Networks → Tunnels → Create a tunnel** (Cloudflared). Copy the token
+   from the Docker install command into `.env` as `CLOUDFLARE_TUNNEL_TOKEN`.
+2. In the tunnel, add a **public hostname**, for example `review.example.org`, with the service
+   `http://api:8080`.
+3. On the server:
+
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.tunnel.yml up -d --wait --build
+   curl https://review.example.org/healthz   # Healthy
+   ```
+
+4. Build the extension with `CHESS_REVIEW_API=https://review.example.org`.
+
+Every request reaches the API from cloudflared, so the API takes the client address from the
+`CF-Connecting-IP` header that Cloudflare sets, and only from the address in
+`ForwardedHeaders:KnownProxies`: cloudflared's fixed address in the tunnel network. Without that
+setting the API ignores the header. The registration limit counts by this address.
+
+To update: `git pull`, then the same `up` command. The database lives in the `mssql-data` volume.
 
 ## Licence
 
