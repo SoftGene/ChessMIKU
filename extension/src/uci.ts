@@ -5,6 +5,11 @@ export type Score = { cp: number } | { mate: number };
 export interface Evaluation {
   bestMoveUci: string;
   score: Score;
+  /**
+   * The score of the second best move, from a search with two lines (MultiPV 2): null when the search had one line,
+   * as a position with one move does. Absent where no search told it.
+   */
+  second?: Score | null;
 }
 
 /** One line of a search with several (MultiPV): its first move and its score, for the side to move. */
@@ -49,6 +54,16 @@ function numberAfter(words: string[], word: string): number | null {
   const at = words.indexOf(word);
   const value = at >= 0 ? Number.parseInt(words[at + 1], 10) : Number.NaN;
   return Number.isInteger(value) ? value : null;
+}
+
+/**
+ * One search with two lines (MultiPV 2): the best move and its score from the first line, the score of the second,
+ * both from one depth (readLines); null for the second when the search had one line. Without a complete line, it
+ * reads as a single search, and fails the same way.
+ */
+export function readEvaluation(lines: readonly string[]): Evaluation {
+  const [first, second] = readLines(lines);
+  return first ? { bestMoveUci: first.moveUci, score: first.score, second: second?.score ?? null } : readSearch(lines);
 }
 
 /** The result of one `go`, read from the lines the engine printed for it. */

@@ -1,7 +1,7 @@
 import type { PositionEvaluation } from './analysis';
 
-/** The engine and search time the evaluations come from (panel.ts): other settings give other evaluations. */
-export const ENGINE_TAG = 'stockfish-19-lite-single/300ms';
+/** The engine, search time and lines the evaluations come from (panel.ts): other settings give other evaluations. */
+export const ENGINE_TAG = 'stockfish-19-lite-single/300ms/multipv2';
 
 const PREFIX = 'evals:';
 const UCI = /^[a-h][1-8][a-h][1-8][qrbn]?$/;

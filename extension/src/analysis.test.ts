@@ -57,10 +57,10 @@ describe('analyseGame', () => {
     // Before a move: the position before it, as the engine sees it for the side to move.
     // After a move: the next position, where the opponent is to move, so the sign is flipped.
     expect(await analyseGame(FOOLS_MATE, evaluate)).toEqual([
-      { ply: 1, san: 'f3', uci: 'f2f3', bestMoveUci: 'e2e4', evalBeforeCp: 30, mateBefore: null, evalAfterCp: -90, mateAfter: null },
-      { ply: 2, san: 'e5', uci: 'e7e5', bestMoveUci: 'e7e5', evalBeforeCp: 90, mateBefore: null, evalAfterCp: 100, mateAfter: null },
-      { ply: 3, san: 'g4', uci: 'g2g4', bestMoveUci: 'g1f3', evalBeforeCp: -100, mateBefore: null, evalAfterCp: null, mateAfter: -1 },
-      { ply: 4, san: 'Qh4#', uci: 'd8h4', bestMoveUci: 'd8h4', evalBeforeCp: null, mateBefore: 1, evalAfterCp: null, mateAfter: 0 },
+      { ply: 1, san: 'f3', uci: 'f2f3', bestMoveUci: 'e2e4', evalBeforeCp: 30, mateBefore: null, evalAfterCp: -90, mateAfter: null, secondBestEvalCp: null, secondBestMate: null },
+      { ply: 2, san: 'e5', uci: 'e7e5', bestMoveUci: 'e7e5', evalBeforeCp: 90, mateBefore: null, evalAfterCp: 100, mateAfter: null, secondBestEvalCp: null, secondBestMate: null },
+      { ply: 3, san: 'g4', uci: 'g2g4', bestMoveUci: 'g1f3', evalBeforeCp: -100, mateBefore: null, evalAfterCp: null, mateAfter: -1, secondBestEvalCp: null, secondBestMate: null },
+      { ply: 4, san: 'Qh4#', uci: 'd8h4', bestMoveUci: 'd8h4', evalBeforeCp: null, mateBefore: 1, evalAfterCp: null, mateAfter: 0, secondBestEvalCp: null, secondBestMate: null },
     ]);
   });
 
@@ -106,6 +106,24 @@ describe('analyseGame', () => {
     ]);
   });
 
+  it('writes the second best move of the position before each move, from the side that makes it', async () => {
+    const { evaluate } = engine([
+      { bestMoveUci: 'e2e4', score: { cp: 30 }, second: { cp: 22 } },
+      { bestMoveUci: 'e7e5', score: { cp: 90 }, second: { mate: -3 } },
+      { bestMoveUci: 'g1f3', score: { cp: -100 }, second: null },
+      mate('d8h4', 1),
+    ]);
+
+    const moves = await analyseGame(FOOLS_MATE, evaluate);
+
+    expect(moves.map((move) => [move.secondBestEvalCp, move.secondBestMate])).toEqual([
+      [22, null],
+      [null, -3],
+      [null, null],
+      [null, null],
+    ]);
+  });
+
   it('marks a move that delivers checkmate with mateAfter 0', async () => {
     const { evaluate } = engine(FOOLS_MATE_ANSWERS);
 
@@ -119,7 +137,7 @@ describe('analyseGame', () => {
     const { asked, evaluate } = engine([cp('b6b7', 1500)]);
 
     expect(await analyseGame(game, evaluate)).toEqual([
-      { ply: 1, san: 'Qc7', uci: 'b6c7', bestMoveUci: 'b6b7', evalBeforeCp: 1500, mateBefore: null, evalAfterCp: 0, mateAfter: null },
+      { ply: 1, san: 'Qc7', uci: 'b6c7', bestMoveUci: 'b6b7', evalBeforeCp: 1500, mateBefore: null, evalAfterCp: 0, mateAfter: null, secondBestEvalCp: null, secondBestMate: null },
     ]);
     expect(asked).toEqual(['k7/8/1Q6/8/8/8/8/7K w - - 0 1']);
   });

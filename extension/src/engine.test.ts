@@ -84,7 +84,7 @@ describe('UciEngine', () => {
     const evaluation = await uci.evaluate('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', { movetime: 300 });
 
     expect(engine.sent.slice(2)).toEqual(['position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', 'go movetime 300']);
-    expect(evaluation).toEqual({ bestMoveUci: 'e2e4', score: { cp: 30 } });
+    expect(evaluation).toEqual({ bestMoveUci: 'e2e4', score: { cp: 30 }, second: null });
   });
 
   it('sets an option and waits until the engine is ready again', async () => {
@@ -94,6 +94,18 @@ describe('UciEngine', () => {
     await uci.setOption('MultiPV', 2);
 
     expect(engine.sent.slice(2)).toEqual(['setoption name MultiPV value 2', 'isready']);
+  });
+
+  it('reads the second line of a search with two into its evaluation', async () => {
+    const lines = [
+      'info depth 9 seldepth 12 multipv 1 score cp 30 nodes 9000 time 280 pv e2e4 e7e5',
+      'info depth 9 seldepth 11 multipv 2 score mate -4 nodes 9000 time 280 pv d2d4',
+      'bestmove e2e4 ponder e7e5',
+    ];
+    const engine = fakeProcess((command) => (command.startsWith('go ') ? lines : standard(command)));
+    const uci = await UciEngine.start(engine.start);
+
+    expect(await uci.evaluate('8/8/8/8/8/8/8/K6k w - - 0 1', { movetime: 300 })).toEqual({ bestMoveUci: 'e2e4', score: { cp: 30 }, second: { mate: -4 } });
   });
 
   it('reports every line of a search with several', async () => {
@@ -138,8 +150,8 @@ describe('UciEngine', () => {
     expect(engine.sent.slice(2)).toEqual(['position fen fen-a', 'go movetime 300', 'position fen fen-b', 'go movetime 300']);
     engine.say(...SEARCH_B);
 
-    expect(await a).toEqual({ bestMoveUci: 'e2e4', score: { cp: 30 } });
-    expect(await b).toEqual({ bestMoveUci: 'g8f8', score: { mate: -2 } });
+    expect(await a).toEqual({ bestMoveUci: 'e2e4', score: { cp: 30 }, second: null });
+    expect(await b).toEqual({ bestMoveUci: 'g8f8', score: { mate: -2 }, second: null });
   });
 
   it('starts a new game and waits until the engine is ready', async () => {

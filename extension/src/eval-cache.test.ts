@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { PositionEvaluation } from './analysis';
 import { createEvalCache, ENGINE_TAG, type CacheStore } from './eval-cache';
 
+// Evaluations saved by another search, one line at a time, are not these: they are searched again.
+it('keys the saved evaluations by the search, two lines at 300 ms', () => {
+  expect(ENGINE_TAG).toBe('stockfish-19-lite-single/300ms/multipv2');
+});
+
 function memory(initial: Record<string, unknown> = {}) {
   const data: Record<string, unknown> = { ...initial };
   const store: CacheStore = {
