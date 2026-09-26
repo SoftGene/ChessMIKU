@@ -1,0 +1,6 @@
+[
+  { "file": "1-moves.png", "caption": "Every move classified, from brilliant to blunder" },
+  { "file": "2-explanation.png", "caption": "Plain-language explanations of the worst moves" },
+  { "file": "3-graph.png", "caption": "Evaluation graph and accuracy for both players" },
+  { "file": "4-board.png", "caption": "Try your own moves on the review board" }
+]
