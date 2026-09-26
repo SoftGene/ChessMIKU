@@ -2,6 +2,15 @@ import { describe, expect, it } from 'vitest';
 import manifest from '../public/manifest.json';
 
 describe('manifest', () => {
+  it('shows its own icon in every size Chrome asks for', () => {
+    expect(manifest.icons).toEqual({
+      16: 'icons/icon-16.png',
+      32: 'icons/icon-32.png',
+      48: 'icons/icon-48.png',
+      128: 'icons/icon-128.png',
+    });
+  });
+
   it('runs the content script on game pages in every language of chess.com', () => {
     // English pages have no language in the address; others do: /ru/game/live/…
     expect(manifest.content_scripts).toEqual([
