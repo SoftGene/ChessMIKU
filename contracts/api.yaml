@@ -378,7 +378,7 @@ components:
           against before the move (pawn 1, knight and bishop 3, rook 5, queen 9), starting
           with a piece rather than a pawn (after a check, only captures of the checking
           pieces count); the mover's expected score is 0.45 or more after the move and was
-          below 0.90 before it;
+          below 0.97 before it (about +9.5, and no mate on the board);
         - `great` - the only good move: the move played is the engine's best move, and the
           second best move (`secondBestEvalCp`, `secondBestMate`) scores 0.10 or more below it;
           not when the move takes back on the square the move before took on, and not when

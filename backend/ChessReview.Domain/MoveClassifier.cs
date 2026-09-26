@@ -2,7 +2,11 @@ namespace ChessReview.Domain;
 
 public static class MoveClassifier
 {
-    public const int Version = 2;
+    /// <summary>
+    /// The version of these rules: a game classified by an older one is classified again. 2: great and brilliant;
+    /// 3: a brilliant move may come at up to about +9.5, not only +6.
+    /// </summary>
+    public const int Version = 3;
 
     // Section 6 of the spec. A book move must not be worse than good, so that a trap in the
     // opening list stays a blunder.
@@ -14,9 +18,11 @@ public static class MoveClassifier
 
     // A brilliant move (design T7.2b): a sacrifice that is the best move or within this loss of it, that keeps the
     // game at least about equal, played before the game was already won. Our values; chess.com does not publish its own.
+    // Won means about +9.5 or a mate on the board: at +7 chess.com still calls a sacrifice brilliant (Pavel's game,
+    // 26.09), its expected points depend on the players' rating and ours do not.
     private const double BrilliantLossBelow = 0.02;
     private const double BrilliantAfterFrom = 0.45;
-    private const double BrilliantBeforeBelow = 0.90;
+    private const double BrilliantBeforeBelow = 0.97;
 
     // A great move: the best move, where the second best would give this much away, a mistake.
     private const double GreatGapFrom = 0.10;

@@ -188,7 +188,7 @@ public class AnalysesTests(ApiFactory api)
         {
             var db = scope.ServiceProvider.GetRequiredService<ChessReviewDbContext>();
             var game = await db.Games.AsNoTracking().Include(g => g.Moves).SingleAsync(g => g.ExternalGameId == request["externalGameId"]!.GetValue<string>(), Ct);
-            Assert.Equal((2, 400), (game.ClassifierVersion, game.Moves.Single(m => m.Ply == 11).SecondBestCp));
+            Assert.Equal((3, 400), (game.ClassifierVersion, game.Moves.Single(m => m.Ply == 11).SecondBestCp));
         }
     }
 

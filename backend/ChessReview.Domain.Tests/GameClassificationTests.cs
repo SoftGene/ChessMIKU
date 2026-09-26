@@ -131,11 +131,19 @@ public class GameClassificationTests
     [InlineData("c4f7", 50, 40, Brilliant)]    // the engine's move, and it gives the bishop away
     [InlineData("d2d4", 50, 40, Brilliant)]    // not the engine's first choice, but within 0.02
     [InlineData("d2d4", 50, 20, Good)]         // gives more than 0.02 away: no brilliant move
-    [InlineData("c4f7", 700, 690, Best)]       // already winning by more than 0.90 before it
+    [InlineData("c4f7", 700, 690, Brilliant)]  // +7 (0.93) is not won yet: chess.com calls such a sacrifice brilliant
+    [InlineData("c4f7", 944, 944, Brilliant)]  // 0.96999 before it: still below 0.97
+    [InlineData("c4f7", 945, 945, Best)]       // 0.97010 before it: already won, about +9.5
     [InlineData("d2d4", -50, -60, Excellent)]  // worse than about equal after it: below 0.45
     public void A_sacrifice_that_keeps_the_game_is_brilliant(string bestMoveUci, int beforeCp, int afterCp, MoveClassification expected)
     {
         Assert.Equal(expected, MoveClassifier.ClassifyGame(BishopTakesF7(bestMoveUci, Cp(beforeCp), Cp(afterCp)), NoBook)[6]);
+    }
+
+    [Fact]
+    public void A_sacrifice_with_a_mate_already_on_the_board_is_not_brilliant()
+    {
+        Assert.Equal(Best, MoveClassifier.ClassifyGame(BishopTakesF7("c4f7", Mate(3), Mate(2)), NoBook)[6]);
     }
 
     [Fact]
