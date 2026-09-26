@@ -137,7 +137,7 @@ function failureCard(failure: Failure): CardState {
     case 'busy':
       return { kind: 'busy', retryAfterSeconds: failure.retryAfterSeconds };
     case 'rejected':
-      console.warn('Chess Review: the server rejected the game:', failure.detail);
+      console.warn('ChessMIKU: the server rejected the game:', failure.detail);
       return { kind: 'rejected' };
   }
 }

@@ -28,11 +28,11 @@ describe('apiBase', () => {
 });
 
 describe('withApiHost', () => {
-  const manifest = { name: 'Chess Review', host_permissions: ['https://api.chess.com/*', 'http://127.0.0.1:8080/*'] };
+  const manifest = { name: 'ChessMIKU', host_permissions: ['https://api.chess.com/*', 'http://127.0.0.1:8080/*'] };
 
   it('lets the extension reach the backend it was built for instead of the local one', () => {
     expect(withApiHost(manifest, 'https://review.example.org')).toEqual({
-      name: 'Chess Review',
+      name: 'ChessMIKU',
       host_permissions: ['https://api.chess.com/*', 'https://review.example.org/*'],
     });
   });
