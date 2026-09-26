@@ -53,6 +53,11 @@ describe('screenshotSvg', () => {
     expect(svg).toContain('x="336" y="150" width="608" height="608" viewBox="480 0 960 960"');
   });
 
+  it('paints over the given parts of the shot, in its own pixels, over the picture', () => {
+    const svg = screenshotSvg(png(1920, 960), 'x', undefined, [{ x: 10, y: 20, width: 30, height: 40, fill: '#221d16' }]);
+    expect(svg).toMatch(/<image [^>]*\/>\s*<rect x="10" y="20" width="30" height="40" fill="#221d16"\/>\s*<\/svg>/);
+  });
+
   it('escapes the caption', () => {
     const svg = screenshotSvg(png(10, 10), 'Brilliant & best <moves>');
     expect(svg).toContain('Brilliant &amp; best &lt;moves&gt;');

@@ -12,6 +12,11 @@ const BACKGROUND = '#17140f';
 const INK = '#e4dccd';
 const FONT = "'Segoe UI', Arial, sans-serif";
 
+/** A part of the shot to paint over, such as the opponent's name, in the shot's own pixels. */
+export interface Cover extends Box {
+  fill: string;
+}
+
 export const SHOT = { width: 1280, height: 800 };
 export const PROMO = { width: 440, height: 280 };
 
@@ -45,7 +50,7 @@ const base64 = (bytes: Uint8Array) => Buffer.from(bytes).toString('base64');
  * A 1280×800 store screenshot: the caption on top, the shot under it in a thin frame. The crop, in the shot's own
  * pixels, keeps only the review window and leaves the site around it out.
  */
-export function screenshotSvg(png: Uint8Array, caption: string, crop?: Box): string {
+export function screenshotSvg(png: Uint8Array, caption: string, crop?: Box, covers: readonly Cover[] = []): string {
   const size = pngSize(png);
   const part = crop ?? { x: 0, y: 0, ...size };
   const { x, y, width, height } = fit(part.width, part.height, SHOT_BOX);
@@ -53,7 +58,9 @@ export function screenshotSvg(png: Uint8Array, caption: string, crop?: Box): str
   <rect width="100%" height="100%" fill="${BACKGROUND}"/>
   <text x="${SHOT.width / 2}" y="98" fill="${INK}" font-family="${FONT}" font-size="46" font-weight="600" text-anchor="middle">${escapeXml(caption)}</text>
   <svg x="${x}" y="${y}" width="${width}" height="${height}" viewBox="${part.x} ${part.y} ${part.width} ${part.height}">
-    <image width="${size.width}" height="${size.height}" xlink:href="data:image/png;base64,${base64(png)}"/>
+    <image width="${size.width}" height="${size.height}" xlink:href="data:image/png;base64,${base64(png)}"/>${covers
+      .map((c) => `\n    <rect x="${c.x}" y="${c.y}" width="${c.width}" height="${c.height}" fill="${c.fill}"/>`)
+      .join('')}
   </svg>
   <rect x="${x - 1}" y="${y - 1}" width="${width + 2}" height="${height + 2}" fill="none" stroke="${INK}" stroke-width="2" rx="3"/>
 </svg>`;
