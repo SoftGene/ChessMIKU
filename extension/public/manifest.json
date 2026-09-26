@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ChessMIKU",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Free review of your finished games: engine evaluation in your browser and plain-language explanations of the worst moves.",
   "icons": {
     "16": "icons/icon-16.png",
