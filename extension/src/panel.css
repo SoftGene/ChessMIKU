@@ -95,7 +95,7 @@ header {
 .eval-bar {
   --white-share: 0.5;
   position: relative;
-  height: var(--board);
+  height: var(---cg-height, var(--board));
   overflow: hidden;
   border-radius: 4px;
   background: #3a342a;

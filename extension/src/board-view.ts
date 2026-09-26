@@ -47,6 +47,9 @@ export function createBoard(element: HTMLElement, orientation: Orientation): Boa
     movable: { free: true, color: undefined, showDests: true, events: { after: (orig, dest) => dropped?.(orig, dest) } },
     premovable: { enabled: false },
     drawable: { enabled: false, visible: true },
+    // chessground rounds the board down to whole 8-device-pixel squares; the evaluation bar beside it takes that
+    // height from ---cg-height, or it sticks out below the board (Pavel, 26.09).
+    addDimensionsCssVarsTo: element.parentElement ?? undefined,
   });
   // The best-move arrow: green, a little thinner than chessground's own; the second best thinner and paler.
   api.state.drawable.brushes.hint = { key: 'hint', color: '#629924', opacity: 0.85, lineWidth: 11 };
