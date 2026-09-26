@@ -63,6 +63,13 @@ public sealed partial class Position
         return given >= SacrificeFrom && victim is { } taken && char.ToLowerInvariant(taken) != 'p';
     }
 
+    /// <summary>Whether the move takes a piece: one stands on its square, or a pawn takes en passant.</summary>
+    public bool Captures(string uci)
+    {
+        var (from, to, _) = ParseUci(uci);
+        return _board[to] != '\0' || (char.ToLowerInvariant(_board[from]) == 'p' && File(from) != File(to));
+    }
+
     // Pawns 1, knights and bishops 3, rooks 5, queens 9. The king is never won.
     private static int Value(char piece) => char.ToLowerInvariant(piece) switch
     {

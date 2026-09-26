@@ -105,24 +105,112 @@ public class GameClassificationTests
     public void The_contract_example_game_is_classified_as_documented()
     {
         // The Legal mate game from the examples in contracts/api.yaml.
+        // 5.Nxe5 gives the queen away (brilliant); 6.Bxf7+ is the only way to mate in two (great); 6...Ke7 is the
+        // only move there is.
         var game = Game(
-            ("e2e4", "e2e4", Cp(30), Cp(30)),
-            ("e7e5", "e7e5", Cp(-30), Cp(-30)),
-            ("g1f3", "g1f3", Cp(32), Cp(32)),
-            ("d7d6", "b8c6", Cp(-32), Cp(-60)),
-            ("f1c4", "d2d4", Cp(60), Cp(55)),
-            ("c8g4", "g8f6", Cp(-55), Cp(-95)),
-            ("b1c3", "h2h3", Cp(95), Cp(90)),
-            ("g7g6", "g8f6", Cp(-90), Cp(-130)),
-            ("f3e5", "f3e5", Cp(130), Cp(150)),
-            ("g4d1", "d6e5", Cp(-150), Mate(-2)),
-            ("c4f7", "c4f7", Mate(2), Mate(1)),
-            ("e8e7", "e8e7", Mate(-1), Mate(-1)),
-            ("c3d5", "c3d5", Mate(1), Mate(0)));
+            ("e2e4", "e2e4", Cp(30), Cp(30), Cp(25)),
+            ("e7e5", "e7e5", Cp(-30), Cp(-30), Cp(-40)),
+            ("g1f3", "g1f3", Cp(32), Cp(32), Cp(28)),
+            ("d7d6", "b8c6", Cp(-32), Cp(-60), Cp(-40)),
+            ("f1c4", "d2d4", Cp(60), Cp(55), Cp(55)),
+            ("c8g4", "g8f6", Cp(-55), Cp(-95), Cp(-70)),
+            ("b1c3", "h2h3", Cp(95), Cp(90), Cp(90)),
+            ("g7g6", "g8f6", Cp(-90), Cp(-130), Cp(-110)),
+            ("f3e5", "f3e5", Cp(130), Cp(150), Cp(60)),
+            ("g4d1", "d6e5", Cp(-150), Mate(-2), Cp(-160)),
+            ("c4f7", "c4f7", Mate(2), Mate(1), Cp(400)),
+            ("e8e7", "e8e7", Mate(-1), Mate(-1), null),
+            ("c3d5", "c3d5", Mate(1), Mate(0), Mate(2)));
 
         Assert.Equal<MoveClassification>(
-            [Book, Book, Book, Book, Book, Good, Excellent, Good, Best, Blunder, Best, Best, Best],
+            [Book, Book, Book, Book, Book, Good, Excellent, Good, Brilliant, Blunder, Great, Best, Best],
             MoveClassifier.ClassifyGame(game, OpeningBook.Lichess));
+    }
+
+    [Theory]
+    [InlineData("c4f7", 50, 40, Brilliant)]    // the engine's move, and it gives the bishop away
+    [InlineData("d2d4", 50, 40, Brilliant)]    // not the engine's first choice, but within 0.02
+    [InlineData("d2d4", 50, 20, Good)]         // gives more than 0.02 away: no brilliant move
+    [InlineData("c4f7", 700, 690, Best)]       // already winning by more than 0.90 before it
+    [InlineData("d2d4", -50, -60, Excellent)]  // worse than about equal after it: below 0.45
+    public void A_sacrifice_that_keeps_the_game_is_brilliant(string bestMoveUci, int beforeCp, int afterCp, MoveClassification expected)
+    {
+        Assert.Equal(expected, MoveClassifier.ClassifyGame(BishopTakesF7(bestMoveUci, Cp(beforeCp), Cp(afterCp)), NoBook)[6]);
+    }
+
+    [Fact]
+    public void A_pawn_offered_is_no_brilliant_move()
+    {
+        // 1.d4 d5 2.c4: the queen's gambit, the engine's own move.
+        var game = Game(
+            ("d2d4", "d2d4", Cp(30), Cp(30), Cp(25)),
+            ("d7d5", "d7d5", Cp(-30), Cp(-30), Cp(-40)),
+            ("c2c4", "c2c4", Cp(30), Cp(30), Cp(25)));
+
+        Assert.Equal(Best, MoveClassifier.ClassifyGame(game, NoBook)[2]);
+    }
+
+    [Fact]
+    public void A_sacrifice_in_the_book_stays_book()
+    {
+        var book = new OpeningBook([["e2e4", "e7e5", "g1f3", "b8c6", "f1c4", "g8f6", "c4f7"]]);
+
+        Assert.Equal(Book, MoveClassifier.ClassifyGame(BishopTakesF7("c4f7", Cp(50), Cp(40)), book)[6]);
+    }
+
+    [Fact]
+    public void A_brilliant_move_is_not_called_great_as_well()
+    {
+        Assert.Equal(Brilliant, MoveClassifier.ClassifyGame(BishopTakesF7("c4f7", Cp(50), Cp(40), Cp(-300)), NoBook)[6]);
+    }
+
+    [Theory]
+    [InlineData(83, Great)]  // 0.6762 against 0.5758: 0.1004 worse, the second move would be a mistake
+    [InlineData(84, Best)]   // 0.6762 against 0.5767: 0.0995, just under 0.10
+    public void The_only_good_move_is_great(int secondBestCp, MoveClassification expected)
+    {
+        // 1.e4 e5 2.Nf3, the engine's move, found where the next best is 0.10 worse or more.
+        var game = Game(
+            ("e2e4", "e2e4", Cp(30), Cp(30), Cp(25)),
+            ("e7e5", "e7e5", Cp(-30), Cp(-30), Cp(-40)),
+            ("g1f3", "g1f3", Cp(200), Cp(200), Cp(secondBestCp)));
+
+        Assert.Equal(expected, MoveClassifier.ClassifyGame(game, NoBook)[2]);
+    }
+
+    [Fact]
+    public void A_move_the_engine_did_not_choose_is_not_great()
+    {
+        var game = Game(
+            ("e2e4", "e2e4", Cp(30), Cp(30), Cp(25)),
+            ("e7e5", "e7e5", Cp(-30), Cp(-30), Cp(-40)),
+            ("b1c3", "g1f3", Cp(200), Cp(195), Cp(-300)));
+
+        Assert.Equal(Excellent, MoveClassifier.ClassifyGame(game, NoBook)[2]);
+    }
+
+    [Fact]
+    public void Taking_back_on_the_square_just_taken_is_not_great()
+    {
+        Assert.Equal(Best, MoveClassifier.ClassifyGame(AfterExd5("d8d5", Cp(-400)), NoBook)[3]);
+    }
+
+    [Fact]
+    public void The_only_good_move_elsewhere_after_a_capture_is_great()
+    {
+        // 2...Nf6 takes nothing back.
+        Assert.Equal(Great, MoveClassifier.ClassifyGame(AfterExd5("g8f6", Cp(-400)), NoBook)[3]);
+    }
+
+    [Fact]
+    public void The_only_move_there_is_is_not_great()
+    {
+        var game = Game(
+            ("e2e4", "e2e4", Cp(30), Cp(30), Cp(25)),
+            ("e7e5", "e7e5", Cp(-30), Cp(-30), Cp(-40)),
+            ("g1f3", "g1f3", Cp(200), Cp(200), null));
+
+        Assert.Equal(Best, MoveClassifier.ClassifyGame(game, NoBook)[2]);
     }
 
     [Fact]
@@ -143,6 +231,26 @@ public class GameClassificationTests
 
     private static MoveEvaluation[] Game(params (string Uci, string BestMoveUci, EngineScore Before, EngineScore After)[] moves) =>
         [.. moves.Select((move, index) => new MoveEvaluation(index + 1, move.Uci, move.BestMoveUci, move.Before, move.After))];
+
+    private static MoveEvaluation[] Game(params (string Uci, string BestMoveUci, EngineScore Before, EngineScore After, EngineScore? SecondBest)[] moves) =>
+        [.. moves.Select((move, index) => new MoveEvaluation(index + 1, move.Uci, move.BestMoveUci, move.Before, move.After, move.SecondBest))];
+
+    // 1.e4 e5 2.Nf3 Nc6 3.Bc4 Nf6, and White to play 4.Bxf7+ (a bishop for a pawn: Kxf7).
+    private static MoveEvaluation[] BishopTakesF7(string bestMoveUci, EngineScore before, EngineScore after, EngineScore? secondBest = null) => Game(
+        ("e2e4", "e2e4", Cp(30), Cp(30), Cp(25)),
+        ("e7e5", "e7e5", Cp(-30), Cp(-30), Cp(-40)),
+        ("g1f3", "g1f3", Cp(32), Cp(32), Cp(28)),
+        ("b8c6", "b8c6", Cp(-32), Cp(-32), Cp(-40)),
+        ("f1c4", "f1c4", Cp(35), Cp(35), Cp(30)),
+        ("g8f6", "g8f6", Cp(-35), Cp(-35), Cp(-45)),
+        ("c4f7", bestMoveUci, before, after, secondBest));
+
+    // 1.e4 d5 2.exd5, and Black to play from there (2...Qxd5 takes back on the square just taken).
+    private static MoveEvaluation[] AfterExd5(string uci, EngineScore secondBest) => Game(
+        ("e2e4", "e2e4", Cp(30), Cp(30), Cp(25)),
+        ("d7d5", "d7d5", Cp(-30), Cp(-60), Cp(-70)),
+        ("e4d5", "e4d5", Cp(60), Cp(60), Cp(-100)),
+        (uci, uci, Cp(-60), Cp(-60), secondBest));
 
     private static EngineScore Cp(int centipawns) => EngineScore.FromCentipawns(centipawns);
 

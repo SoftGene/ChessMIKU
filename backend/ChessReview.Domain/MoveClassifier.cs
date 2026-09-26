@@ -2,6 +2,8 @@ namespace ChessReview.Domain;
 
 public static class MoveClassifier
 {
+    public const int Version = 2;
+
     // Section 6 of the spec. A book move must not be worse than good, so that a trap in the
     // opening list stays a blunder.
     private const double BookLossBelow = 0.05;
@@ -10,15 +12,27 @@ public static class MoveClassifier
     private const double MissWinningFrom = 0.75;
     private const double MissGivenBackTo = 0.60;
 
+    // A brilliant move (design T7.2b): a sacrifice that is the best move or within this loss of it, that keeps the
+    // game at least about equal, played before the game was already won. Our values; chess.com does not publish its own.
+    private const double BrilliantLossBelow = 0.02;
+    private const double BrilliantAfterFrom = 0.45;
+    private const double BrilliantBeforeBelow = 0.90;
+
+    // A great move: the best move, where the second best would give this much away, a mistake.
+    private const double GreatGapFrom = 0.10;
+
     /// <summary>
     /// Classifies the moves of a game in order, adding the classes that depend on the moves
-    /// before: book and miss.
+    /// before and on the board: book, brilliant, great and miss.
     /// </summary>
     public static IReadOnlyList<MoveClassification> ClassifyGame(IReadOnlyList<MoveEvaluation> moves, OpeningBook book)
     {
         var classes = new MoveClassification[moves.Count];
         var line = new List<string>(moves.Count);
         var inBook = true;
+        var position = Position.Start;
+        // The square the move before took on, if it took: a move taking back there is plain to see.
+        string? lastCapture = null;
 
         for (var i = 0; i < moves.Count; i++)
         {
@@ -33,7 +47,14 @@ public static class MoveClassifier
 
             classes[i] = inBook && move.ExpectedPointsLoss < BookLossBelow
                 ? MoveClassification.Book
-                : Classify(move);
+                : IsBrilliant(move, position)
+                    ? MoveClassification.Brilliant
+                    : IsGreat(move, position, lastCapture)
+                        ? MoveClassification.Great
+                        : Classify(move);
+
+            lastCapture = position.Captures(move.Uci) ? move.Uci[2..4] : null;
+            position = position.Play(move.Uci);
 
             if (i > 0 && IsMiss(move, classes[i], classes[i - 1]))
             {
@@ -67,6 +88,21 @@ public static class MoveClassifier
         < 0.20 => MoveClassification.Mistake,
         _ => MoveClassification.Blunder,
     };
+
+    // A sacrifice that costs almost nothing and keeps the game, in a game not yet won.
+    private static bool IsBrilliant(MoveEvaluation move, Position before) =>
+        move.ExpectedPointsLoss < BrilliantLossBelow
+        && move.Before.ExpectedPoints < BrilliantBeforeBelow
+        && move.After.ExpectedPoints >= BrilliantAfterFrom
+        && before.Sacrifices(move.Uci);
+
+    // The only good move: the engine's best, the second best a mistake. Not a plain recapture on the square just
+    // taken, and not a move that had no other to choose from (no second best).
+    private static bool IsGreat(MoveEvaluation move, Position before, string? lastCapture) =>
+        string.Equals(move.Uci, move.BestMoveUci, StringComparison.Ordinal)
+        && move.SecondBest is { } second
+        && move.Before.ExpectedPoints - second.ExpectedPoints >= GreatGapFrom
+        && !(lastCapture == move.Uci[2..4] && before.Captures(move.Uci));
 
     // The opponent has just erred, the mover had a winning position and gave it back.
     private static bool IsMiss(MoveEvaluation move, MoveClassification moveClass, MoveClassification opponentMoveClass) =>

@@ -33,6 +33,15 @@ public class SacrificeTests
     }
 
     [Theory]
+    [InlineData("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "e2e4", false)]
+    [InlineData("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2", "e4d5", true)]
+    [InlineData("rnbqkbnr/1pp1pppp/p7/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 3", "e5d6", true)]
+    public void A_move_onto_a_piece_or_en_passant_captures(string fen, string uci, bool captures)
+    {
+        Assert.Equal(captures, Position.FromFen(fen).Captures(uci));
+    }
+
+    [Theory]
     [InlineData("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")]
     [InlineData("rn1qkbnr/ppp2p1p/3p2p1/4N3/2B1P3/2N5/PPPP1PPP/R1BbK2R w KQkq - 0 6")]
     [InlineData("rnbqkbnr/1pp1pppp/p7/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 3")]
