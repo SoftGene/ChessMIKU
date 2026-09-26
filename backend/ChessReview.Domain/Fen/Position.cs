@@ -6,7 +6,7 @@ namespace ChessReview.Domain;
 /// A position that UCI moves are played on, to give the language model the FEN before a move.
 /// The engine produced the moves, so their legality is not checked.
 /// </summary>
-public sealed class Position
+public sealed partial class Position
 {
     // Index = file + 8 * rank, a1 = 0, h8 = 63. White pieces upper case, black lower case, '\0' empty.
     private readonly char[] _board;
