@@ -77,6 +77,14 @@ describe('icons', () => {
     expect(squareMark('mistake')).toContain('<g class="mark-pop"');
   });
 
+  it('rings a brilliant move twice, in its colour and then lighter, and the other notable ones once', () => {
+    const rings = (cls: string) => [...(squareMark(cls) ?? '').matchAll(/class="(mark-ring[^"]*)"[^>]*stroke="(#[0-9a-f]+)"/g)].map((m) => [m[1], m[2]]);
+
+    expect(rings('brilliant')).toEqual([['mark-ring', '#26b5a8'], ['mark-ring mark-ring-late', '#7fe0d6']]);
+    expect(rings('blunder')).toEqual([['mark-ring', '#d93b3b']]);
+    expect(rings('great')).toEqual([['mark-ring', '#5b8bd6']]);
+  });
+
   it('carries the position in the mark, so that the board draws it anew on each move', () => {
     expect(squareMark('best', 'fen-a')).toContain('data-at="fen-a"');
     expect(squareMark('best', 'fen-a')).not.toBe(squareMark('best', 'fen-b'));
