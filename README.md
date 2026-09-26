@@ -121,28 +121,6 @@ setting the API ignores the header. The registration limit counts by this addres
 
 To update: `git pull`, then the same `up` command. The database lives in the `mssql-data` volume.
 
-## Releasing
-
-By hand, from an up-to-date `main`:
-
-1. Build for the server:
-   `CHESS_REVIEW_API=https://chessmiku.softgene.dev npm --prefix extension run build`.
-   `extension/dist/manifest.json` should show the new version and the server in `host_permissions`.
-2. Zip the contents of `extension/dist`, not the folder: `manifest.json` must be at the root of the
-   archive. Keep the archive outside the repository. In PowerShell:
-   ```powershell
-   Push-Location extension\dist; tar.exe -a -cf $HOME\Desktop\chessmiku-1.0.1.zip *; Pop-Location
-   ```
-   Not `Compress-Archive`: in Windows PowerShell 5.1 it writes paths with backslashes
-   (`icons\icon-16.png`), which other systems and the Chrome Web Store read as file names, not
-   folders. Check with `tar.exe -tf <zip>`: the paths must use `/`.
-3. Tag the commit and push the tag: `git tag v1.0.1`, `git push origin v1.0.1`.
-4. On GitHub: **Releases** → **Draft a new release** → the tag, a title, notes, the zip attached →
-   **Publish release**. The same zip goes to the Chrome Web Store.
-
-The version comes from `extension/public/manifest.json` and `extension/package.json`; raise both
-before a release.
-
 ## Privacy
 
 Only a finished game you choose to review leaves your browser: its PGN, the engine evaluations and an anonymous
