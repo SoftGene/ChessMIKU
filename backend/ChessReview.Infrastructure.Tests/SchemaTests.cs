@@ -190,10 +190,55 @@ public class SchemaTests(SqlServerFixture sql)
         await using var db = sql.CreateContext();
 
         var error = await Assert.ThrowsAsync<SqlException>(() =>
-            db.Database.ExecuteSqlAsync($"UPDATE Moves SET Classification = 'Brilliant' WHERE GameId = {game.Id}", Ct));
+            db.Database.ExecuteSqlAsync($"UPDATE Moves SET Classification = 'Forced' WHERE GameId = {game.Id}", Ct));
 
         Assert.Equal(ConstraintConflict, error.Number);
         Assert.Contains("CK_Moves_Classification", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Great_and_brilliant_are_classes_of_the_contract()
+    {
+        var game = NewGame();
+        game.Moves.Add(NewMove(ply: 1, evalBeforeCp: 0, evalAfterCp: 0));
+        await SaveAsync(game);
+        await using var db = sql.CreateContext();
+
+        var updated = await db.Database.ExecuteSqlAsync($"UPDATE Moves SET Classification = 'Brilliant' WHERE GameId = {game.Id}", Ct)
+            + await db.Database.ExecuteSqlAsync($"UPDATE Moves SET Classification = 'Great' WHERE GameId = {game.Id}", Ct);
+
+        Assert.Equal(2, updated);
+    }
+
+    [Fact]
+    public async Task A_second_best_move_with_both_centipawns_and_mate_is_rejected()
+    {
+        var game = NewGame();
+        game.Moves.Add(NewMove(ply: 1, evalBeforeCp: 0, evalAfterCp: 0));
+        await SaveAsync(game);
+        await using var db = sql.CreateContext();
+
+        var error = await Assert.ThrowsAsync<SqlException>(() =>
+            db.Database.ExecuteSqlAsync($"UPDATE Moves SET SecondBestCp = 10, SecondBestMate = 2 WHERE GameId = {game.Id}", Ct));
+
+        Assert.Equal(ConstraintConflict, error.Number);
+        Assert.Contains("CK_Moves_SecondBest", error.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(10, null)]
+    [InlineData(null, 2)]
+    [InlineData(null, null)]
+    public async Task A_second_best_move_has_centipawns_a_mate_or_nothing(int? centipawns, int? mate)
+    {
+        var game = NewGame();
+        game.Moves.Add(NewMove(ply: 1, evalBeforeCp: 0, evalAfterCp: 0));
+        await SaveAsync(game);
+        await using var db = sql.CreateContext();
+
+        var updated = await db.Database.ExecuteSqlAsync($"UPDATE Moves SET SecondBestCp = {centipawns}, SecondBestMate = {mate} WHERE GameId = {game.Id}", Ct);
+
+        Assert.Equal(1, updated);
     }
 
     private async Task SaveAsync(params object[] entities)

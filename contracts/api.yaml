@@ -101,20 +101,21 @@ paths:
 
                 1. e4 e5 2. Nf3 d6 3. Bc4 Bg4 4. Nc3 g6 5. Nxe5 Bxd1 6. Bxf7+ Ke7 7. Nd5# 1-0
               moves:
-                # Ply 10 walks into mate in two; plies 11-13 carry mate scores instead of centipawns.
-                - { ply: 1, san: 'e4', uci: e2e4, bestMoveUci: e2e4, evalBeforeCp: 30, mateBefore: null, evalAfterCp: 30, mateAfter: null }
-                - { ply: 2, san: 'e5', uci: e7e5, bestMoveUci: e7e5, evalBeforeCp: -30, mateBefore: null, evalAfterCp: -30, mateAfter: null }
-                - { ply: 3, san: 'Nf3', uci: g1f3, bestMoveUci: g1f3, evalBeforeCp: 32, mateBefore: null, evalAfterCp: 32, mateAfter: null }
-                - { ply: 4, san: 'd6', uci: d7d6, bestMoveUci: b8c6, evalBeforeCp: -32, mateBefore: null, evalAfterCp: -60, mateAfter: null }
-                - { ply: 5, san: 'Bc4', uci: f1c4, bestMoveUci: d2d4, evalBeforeCp: 60, mateBefore: null, evalAfterCp: 55, mateAfter: null }
-                - { ply: 6, san: 'Bg4', uci: c8g4, bestMoveUci: g8f6, evalBeforeCp: -55, mateBefore: null, evalAfterCp: -95, mateAfter: null }
-                - { ply: 7, san: 'Nc3', uci: b1c3, bestMoveUci: h2h3, evalBeforeCp: 95, mateBefore: null, evalAfterCp: 90, mateAfter: null }
-                - { ply: 8, san: 'g6', uci: g7g6, bestMoveUci: g8f6, evalBeforeCp: -90, mateBefore: null, evalAfterCp: -130, mateAfter: null }
-                - { ply: 9, san: 'Nxe5', uci: f3e5, bestMoveUci: f3e5, evalBeforeCp: 130, mateBefore: null, evalAfterCp: 150, mateAfter: null }
-                - { ply: 10, san: 'Bxd1', uci: g4d1, bestMoveUci: d6e5, evalBeforeCp: -150, mateBefore: null, evalAfterCp: null, mateAfter: -2 }
-                - { ply: 11, san: 'Bxf7+', uci: c4f7, bestMoveUci: c4f7, evalBeforeCp: null, mateBefore: 2, evalAfterCp: null, mateAfter: 1 }
-                - { ply: 12, san: 'Ke7', uci: e8e7, bestMoveUci: e8e7, evalBeforeCp: null, mateBefore: -1, evalAfterCp: null, mateAfter: -1 }
-                - { ply: 13, san: 'Nd5#', uci: c3d5, bestMoveUci: c3d5, evalBeforeCp: null, mateBefore: 1, evalAfterCp: null, mateAfter: 0 }
+                # Ply 9 gives the queen away (brilliant); ply 10 walks into mate in two; plies 11-13 carry mate
+                # scores; ply 11 is the only way to mate in two (great); ply 12 is the only move there is.
+                - { ply: 1, san: 'e4', uci: e2e4, bestMoveUci: e2e4, evalBeforeCp: 30, mateBefore: null, evalAfterCp: 30, mateAfter: null, secondBestEvalCp: 25, secondBestMate: null }
+                - { ply: 2, san: 'e5', uci: e7e5, bestMoveUci: e7e5, evalBeforeCp: -30, mateBefore: null, evalAfterCp: -30, mateAfter: null, secondBestEvalCp: -40, secondBestMate: null }
+                - { ply: 3, san: 'Nf3', uci: g1f3, bestMoveUci: g1f3, evalBeforeCp: 32, mateBefore: null, evalAfterCp: 32, mateAfter: null, secondBestEvalCp: 28, secondBestMate: null }
+                - { ply: 4, san: 'd6', uci: d7d6, bestMoveUci: b8c6, evalBeforeCp: -32, mateBefore: null, evalAfterCp: -60, mateAfter: null, secondBestEvalCp: -40, secondBestMate: null }
+                - { ply: 5, san: 'Bc4', uci: f1c4, bestMoveUci: d2d4, evalBeforeCp: 60, mateBefore: null, evalAfterCp: 55, mateAfter: null, secondBestEvalCp: 55, secondBestMate: null }
+                - { ply: 6, san: 'Bg4', uci: c8g4, bestMoveUci: g8f6, evalBeforeCp: -55, mateBefore: null, evalAfterCp: -95, mateAfter: null, secondBestEvalCp: -70, secondBestMate: null }
+                - { ply: 7, san: 'Nc3', uci: b1c3, bestMoveUci: h2h3, evalBeforeCp: 95, mateBefore: null, evalAfterCp: 90, mateAfter: null, secondBestEvalCp: 90, secondBestMate: null }
+                - { ply: 8, san: 'g6', uci: g7g6, bestMoveUci: g8f6, evalBeforeCp: -90, mateBefore: null, evalAfterCp: -130, mateAfter: null, secondBestEvalCp: -110, secondBestMate: null }
+                - { ply: 9, san: 'Nxe5', uci: f3e5, bestMoveUci: f3e5, evalBeforeCp: 130, mateBefore: null, evalAfterCp: 150, mateAfter: null, secondBestEvalCp: 60, secondBestMate: null }
+                - { ply: 10, san: 'Bxd1', uci: g4d1, bestMoveUci: d6e5, evalBeforeCp: -150, mateBefore: null, evalAfterCp: null, mateAfter: -2, secondBestEvalCp: -160, secondBestMate: null }
+                - { ply: 11, san: 'Bxf7+', uci: c4f7, bestMoveUci: c4f7, evalBeforeCp: null, mateBefore: 2, evalAfterCp: null, mateAfter: 1, secondBestEvalCp: 400, secondBestMate: null }
+                - { ply: 12, san: 'Ke7', uci: e8e7, bestMoveUci: e8e7, evalBeforeCp: null, mateBefore: -1, evalAfterCp: null, mateAfter: -1, secondBestEvalCp: null, secondBestMate: null }
+                - { ply: 13, san: 'Nd5#', uci: c3d5, bestMoveUci: c3d5, evalBeforeCp: null, mateBefore: 1, evalAfterCp: null, mateAfter: 0, secondBestEvalCp: null, secondBestMate: 2 }
       responses:
         '200':
           description: |
@@ -137,9 +138,9 @@ paths:
                   - { ply: 6, classification: good }
                   - { ply: 7, classification: excellent }
                   - { ply: 8, classification: good }
-                  - { ply: 9, classification: best }
+                  - { ply: 9, classification: brilliant }
                   - { ply: 10, classification: blunder }
-                  - { ply: 11, classification: best }
+                  - { ply: 11, classification: great }
                   - { ply: 12, classification: best }
                   - { ply: 13, classification: best }
         '202':
@@ -362,7 +363,7 @@ components:
 
     Classification:
       type: string
-      enum: [best, excellent, good, book, inaccuracy, mistake, miss, blunder]
+      enum: [best, excellent, good, book, inaccuracy, mistake, miss, blunder, great, brilliant]
       description: |
         Move class, decided by the backend with the expected points model. Each engine
         evaluation is turned into the mover's expected score, from 0.00 (lost) through 0.50
@@ -372,6 +373,16 @@ components:
         Checked in this order, the first match wins:
 
         - `book` - the game so far follows a known opening line and the loss is below 0.05;
+        - `brilliant` - a sacrifice: the loss is below 0.02, and after the move the opponent's
+          best series of captures on one square leaves the mover at least two pawns down
+          against before the move (pawn 1, knight and bishop 3, rook 5, queen 9), starting
+          with a piece rather than a pawn (after a check, only captures of the checking
+          pieces count); the mover's expected score is 0.45 or more after the move and was
+          below 0.90 before it;
+        - `great` - the only good move: the move played is the engine's best move, and the
+          second best move (`secondBestEvalCp`, `secondBestMate`) scores 0.10 or more below it;
+          not when the move takes back on the square the move before took on, and not when
+          there was no second move;
         - `best` - the move played is the engine's best move;
         - `excellent` - loss below 0.02;
         - `good` - loss of at least 0.02 and below 0.05;
@@ -423,9 +434,10 @@ components:
       description: |
         Raw engine evaluations of one half-move. Each of the two evaluations is either
         centipawns or a forced mate: exactly one of `evalBeforeCp` and `mateBefore` is set,
-        and exactly one of `evalAfterCp` and `mateAfter`. Any other combination is rejected
+        and exactly one of `evalAfterCp` and `mateAfter`. The second best move has at most
+        one of `secondBestEvalCp` and `secondBestMate`. Any other combination is rejected
         with `400`.
-      required: [ply, san, uci, bestMoveUci, evalBeforeCp, mateBefore, evalAfterCp, mateAfter]
+      required: [ply, san, uci, bestMoveUci, evalBeforeCp, mateBefore, evalAfterCp, mateAfter, secondBestEvalCp, secondBestMate]
       additionalProperties: false
       properties:
         ply:
@@ -463,6 +475,16 @@ components:
           description: |
             Forced mate in the position after the move, with the sign flipped the same way.
             `0` means the move itself delivered checkmate.
+        secondBestEvalCp:
+          $ref: '#/components/schemas/Centipawns'
+          description: |
+            Evaluation of the position before the move, assuming the engine's second best
+            move is played (the second line of a search with MultiPV 2). Point of view of the
+            side making the move. Both this and `secondBestMate` are `null` when the position
+            had only one move.
+        secondBestMate:
+          $ref: '#/components/schemas/MateIn'
+          description: Forced mate after the engine's second best move, as `mateBefore`.
 
     CreateAnalysisRequest:
       type: object

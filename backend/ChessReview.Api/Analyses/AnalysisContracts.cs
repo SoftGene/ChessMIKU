@@ -113,8 +113,19 @@ public sealed class MoveEvaluationRequest : IValidatableObject
     [Range(-500, 500)]
     public required int? MateAfter { get; init; }
 
+    [Range(-32000, 32000)]
+    public required int? SecondBestEvalCp { get; init; }
+
+    [Range(-500, 500)]
+    public required int? SecondBestMate { get; init; }
+
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
+        if (SecondBestEvalCp is not null && SecondBestMate is not null)
+        {
+            yield return new ValidationResult("Set at most one of secondBestEvalCp and secondBestMate: both null means the position had one move.", ["secondBestEvalCp", "secondBestMate"]);
+        }
+
         if (EvalBeforeCp is null == MateBefore is null)
         {
             yield return new ValidationResult("Set exactly one of evalBeforeCp and mateBefore.", ["evalBeforeCp", "mateBefore"]);

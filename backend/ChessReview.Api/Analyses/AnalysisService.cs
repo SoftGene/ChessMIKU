@@ -61,6 +61,10 @@ public sealed class AnalysisService(ChessReviewDbContext db, DailyQuota quota)
             game = NewGame(request);
             db.Games.Add(game);
         }
+        else if (game.ClassifierVersion < MoveClassifier.Version)
+        {
+            ClassifyAgain(game, request);
+        }
 
         if (job is null)
         {
@@ -136,6 +140,7 @@ public sealed class AnalysisService(ChessReviewDbContext db, DailyQuota quota)
             WhiteUser = pgn.Tag("White") ?? "",
             BlackUser = pgn.Tag("Black") ?? "",
             PlayedAt = PlayedAt(pgn),
+            ClassifierVersion = MoveClassifier.Version,
         };
 
         game.Moves.AddRange(request.Moves.Select((move, index) => new Move
@@ -148,10 +153,34 @@ public sealed class AnalysisService(ChessReviewDbContext db, DailyQuota quota)
             MateBefore = (short?)move.MateBefore,
             EvalAfterCp = move.EvalAfterCp,
             MateAfter = (short?)move.MateAfter,
+            SecondBestCp = move.SecondBestEvalCp,
+            SecondBestMate = (short?)move.SecondBestMate,
             Classification = classes[index],
         }));
 
         return game;
+    }
+
+    // A game classified by an older classifier: the evaluations of this request (the same moves, the PGN matched
+    // them) replace the stored ones, and the moves are classified anew. Its explanations stay.
+    private static void ClassifyAgain(Game game, CreateAnalysisRequest request)
+    {
+        var classes = MoveClassifier.ClassifyGame([.. request.Moves.Select(ToEvaluation)], OpeningBook.Lichess);
+        var stored = game.Moves.ToDictionary(m => (int)m.Ply);
+        foreach (var (move, index) in request.Moves.Select((move, index) => (move, index)))
+        {
+            var row = stored[move.Ply];
+            row.BestMoveUci = move.BestMoveUci;
+            row.EvalBeforeCp = move.EvalBeforeCp;
+            row.MateBefore = (short?)move.MateBefore;
+            row.EvalAfterCp = move.EvalAfterCp;
+            row.MateAfter = (short?)move.MateAfter;
+            row.SecondBestCp = move.SecondBestEvalCp;
+            row.SecondBestMate = (short?)move.SecondBestMate;
+            row.Classification = classes[index];
+        }
+
+        game.ClassifierVersion = MoveClassifier.Version;
     }
 
     private static MoveEvaluation ToEvaluation(MoveEvaluationRequest move) => new(
@@ -159,7 +188,8 @@ public sealed class AnalysisService(ChessReviewDbContext db, DailyQuota quota)
         move.Uci,
         move.BestMoveUci,
         Score(move.EvalBeforeCp, move.MateBefore),
-        Score(move.EvalAfterCp, move.MateAfter));
+        Score(move.EvalAfterCp, move.MateAfter),
+        move.SecondBestEvalCp is null && move.SecondBestMate is null ? null : Score(move.SecondBestEvalCp, move.SecondBestMate));
 
     private static EngineScore Score(int? centipawns, int? mateIn) =>
         centipawns is { } value ? EngineScore.FromCentipawns(value) : EngineScore.FromMateIn(mateIn!.Value);

@@ -9,7 +9,7 @@ const CLASSES = /Classification:\s*\n\s*type: string\s*\n\s*enum: \[([^\]]+)\]/.
 
 describe('icons', () => {
   it('reads the classes of the contract', () => {
-    expect(CLASSES).toEqual(['best', 'excellent', 'good', 'book', 'inaccuracy', 'mistake', 'miss', 'blunder']);
+    expect(CLASSES).toEqual(['best', 'excellent', 'good', 'book', 'inaccuracy', 'mistake', 'miss', 'blunder', 'great', 'brilliant']);
   });
 
   it.each(CLASSES)('has an icon for %s in its own colour', (cls) => {

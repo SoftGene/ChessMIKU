@@ -11,6 +11,8 @@ internal static class SqlConstraints
     public static string In(string column, IEnumerable<string> values) =>
         $"[{column}] IN ({string.Join(", ", values.Select(value => $"'{value}'"))})";
 
+    public static string AtMostOneOf(string first, string second) => $"[{first}] IS NULL OR [{second}] IS NULL";
+
     public static string ExactlyOneOf(string first, string second) =>
         $"([{first}] IS NULL AND [{second}] IS NOT NULL) OR ([{first}] IS NOT NULL AND [{second}] IS NULL)";
 }
