@@ -1,4 +1,4 @@
-# Chess Review
+# ChessMIKU
 
 Free post-game review for finished chess.com games: a browser extension analyses the game with
 Stockfish in your own browser, and a .NET backend stores the review and turns the engine numbers

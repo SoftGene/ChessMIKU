@@ -138,7 +138,7 @@ describe('the backend review', () => {
     await review.start(game);
 
     expect(cards.at(-1)).toEqual({ kind: 'rejected' });
-    expect(warn).toHaveBeenCalledWith('Chess Review: the server rejected the game:', 'pgn: The game is not finished.');
+    expect(warn).toHaveBeenCalledWith('ChessMIKU: the server rejected the game:', 'pgn: The game is not finished.');
     warn.mockRestore();
   });
 

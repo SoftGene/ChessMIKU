@@ -31,7 +31,7 @@ setInterval(() => {
   try {
     tick(Date.now());
   } catch (error) {
-    console.warn('Chess Review:', error);
+    console.warn('ChessMIKU:', error);
   }
 }, 1000);
 
@@ -126,7 +126,7 @@ function togglePanel(page: GamePage) {
 
   const frame = document.createElement('iframe');
   frame.id = PANEL_ID;
-  frame.title = 'Chess Review';
+  frame.title = 'ChessMIKU';
   frame.allow = 'autoplay';
   frame.src = chrome.runtime.getURL('panel.html') + panelSearch(page, boardOrientation(document));
   frame.style.cssText = 'position: fixed; inset: 0; width: 100vw; height: 100vh; margin: 0; border: 0; z-index: 2147483647; background: transparent; color-scheme: dark;';

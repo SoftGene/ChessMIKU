@@ -25,6 +25,6 @@ describe('manifest', () => {
   });
 
   it('carries no chess.com brand in its name', () => {
-    expect(manifest.name).toBe('Chess Review');
+    expect(manifest.name).toBe('ChessMIKU');
   });
 });
