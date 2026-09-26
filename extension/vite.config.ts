@@ -1,11 +1,31 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
+import { apiBase, withApiHost } from './src/api-address';
 
 // The policy Chrome gives the extension's pages and workers: the manifest's, or else Chrome's default,
 // which has no WebAssembly (developer.chrome.com/docs/extensions/reference/manifest/content-security-policy).
 const manifest = JSON.parse(readFileSync(resolve(import.meta.dirname, 'public/manifest.json'), 'utf8'));
 const EXTENSION_PAGES_POLICY: string = manifest.content_security_policy?.extension_pages ?? "script-src 'self'; object-src 'self';";
+
+// The backend the extension asks: CHESS_REVIEW_API=https://… npm run build, or the local one.
+const API = apiBase(process.env.CHESS_REVIEW_API);
+
+// public/manifest.json lets the extension reach the local backend; the built one, the backend of the build.
+function manifestForApi(): Plugin {
+  let outDir = '';
+  return {
+    name: 'manifest-for-api',
+    configResolved: (config) => {
+      outDir = resolve(config.root, config.build.outDir);
+    },
+    closeBundle: () => {
+      const file = resolve(outDir, 'manifest.json');
+      writeFileSync(file, `${JSON.stringify(withApiHost(JSON.parse(readFileSync(file, 'utf8')), API), null, 2)}
+`);
+    },
+  };
+}
 
 // Two builds, because Chrome loads the scripts differently:
 // - background (--mode background): the service worker, an ES module (manifest "type": "module"),
@@ -14,8 +34,9 @@ const EXTENSION_PAGES_POLICY: string = manifest.content_security_policy?.extensi
 //   import, so a chunk shared with the service worker would stop them on their first line.
 // - bench (npm run bench): a dev server for bench/*.html. It sends the policy of the extension's
 //   pages, so the engine runs under the same rules as in the panel.
-export default defineConfig(({ mode }) =>
-  mode === 'bench'
+export default defineConfig(({ mode }) => ({
+  define: { __CHESS_REVIEW_API__: JSON.stringify(API) },
+  ...(mode === 'bench'
     ? {
         server: {
           headers: { 'Content-Security-Policy': EXTENSION_PAGES_POLICY },
@@ -38,6 +59,7 @@ export default defineConfig(({ mode }) =>
         },
       }
     : {
+        plugins: [manifestForApi()],
         build: {
           outDir: 'dist',
           emptyOutDir: true,
@@ -51,5 +73,5 @@ export default defineConfig(({ mode }) =>
             output: { entryFileNames: '[name].js' },
           },
         },
-      },
-);
+      }),
+}));

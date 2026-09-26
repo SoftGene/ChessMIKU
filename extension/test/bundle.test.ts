@@ -102,3 +102,32 @@ async function panelScript(): Promise<string> {
   expect(src, 'panel.html loads no module script').toBeDefined();
   return src!;
 }
+
+describe('the extension built for a server', () => {
+  let server: string;
+
+  beforeAll(async () => {
+    server = await mkdtemp(join(tmpdir(), 'chess-review-dist-server-'));
+    process.env.CHESS_REVIEW_API = 'https://review.example.org/';
+    try {
+      await build({ configFile: resolve(import.meta.dirname, '../vite.config.ts'), mode: 'background', logLevel: 'silent', build: { outDir: server } });
+    } finally {
+      delete process.env.CHESS_REVIEW_API;
+    }
+  }, 60_000);
+
+  afterAll(() => rm(server, { recursive: true, force: true }));
+
+  it('asks that server and no other', async () => {
+    const background = await readFile(join(server, 'background.js'), 'utf8');
+
+    expect(background).toContain('https://review.example.org');
+    expect(background).not.toContain('127.0.0.1');
+  });
+
+  it('may reach that server instead of the local one', async () => {
+    const manifest = JSON.parse(await readFile(join(server, 'manifest.json'), 'utf8'));
+
+    expect(manifest.host_permissions).toEqual(['https://api.chess.com/*', 'https://review.example.org/*']);
+  });
+});
