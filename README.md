@@ -125,7 +125,7 @@ To update: `git pull`, then the same `up` command. The database lives in the `ms
 
 Only a finished game you choose to review leaves your browser: its PGN, the engine evaluations and an anonymous
 installation ID go to the server, and the moves go on to Google Gemini for the explanations. The full policy:
-https://softgene.github.io/ChessMIKU/privacy.html (source in `site/`, published by the `pages` workflow).
+https://chessmiku-app.softgene.dev/privacy.html (source in `site/`, published by the `pages` workflow).
 
 ## Licence
 
