@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "build": "vite build --mode background && vite build --mode content",
     "bench": "vite --mode bench",
-    "icons": "node scripts/icons.mjs"
+    "icons": "node scripts/icons.mjs",
+    "store-images": "node scripts/store-images.mjs"
   },
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2",
