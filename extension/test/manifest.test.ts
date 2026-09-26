@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import manifest from '../public/manifest.json';
+import pkg from '../package.json';
 
 describe('manifest', () => {
+  it('is version 1.0.0, the same in the manifest and the package', () => {
+    expect(manifest.version).toBe('1.0.0');
+    expect(pkg.version).toBe(manifest.version);
+  });
+
   it('shows its own icon in every size Chrome asks for', () => {
     expect(manifest.icons).toEqual({
       16: 'icons/icon-16.png',
