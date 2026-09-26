@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChessMIKU — Privacy Policy</title>
+<style>
+  :root { color-scheme: light dark; --text: #1d1d1f; --muted: #5f6368; --bg: #fdfdfb; --rule: #e3e3e0; }
+  @media (prefers-color-scheme: dark) {
+    :root { --text: #e8e8e6; --muted: #a0a4a8; --bg: #161617; --rule: #333336; }
+  }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 40rem; margin: 0 auto; padding: 2.5rem 1rem 4rem; }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 .25rem; }
+  h2 { font-size: 1.15rem; margin: 2.2rem 0 .5rem; padding-top: 1.2rem; border-top: 1px solid var(--rule); }
+  .effective { color: var(--muted); margin: 0 0 1.5rem; }
+  ul { padding-left: 1.25rem; }
+  li { margin: .3rem 0; }
+  a { color: inherit; }
+</style>
+</head>
+<body>
+<main>
+<h1>ChessMIKU Privacy Policy</h1>
+<p class="effective">Effective 26 September 2026</p>
+
+<p>ChessMIKU is a free browser extension that reviews your finished games from chess.com: the Stockfish engine
+evaluates the game in your browser, and our server turns the evaluations into plain-language explanations of the
+worst moves. This page says what data that takes, where it goes and how long it stays.</p>
+
+<p>ChessMIKU is an independent project and is not affiliated with Chess.com.</p>
+
+<h2>What is sent to the ChessMIKU server</h2>
+<p>Only finished games, and only when you press <strong>Review game</strong>. Nothing is sent while a game is in
+progress, and ChessMIKU never gives hints during a game. For the game you chose to review, the extension sends:</p>
+<ul>
+  <li>the game's PGN, which contains both players' chess.com usernames and the date of the game;</li>
+  <li>the game's chess.com number;</li>
+  <li>the engine evaluation of every move, computed in your browser;</li>
+  <li>the language you want the explanations in;</li>
+  <li>an anonymous installation ID, which our server issues when the extension first contacts it. It is a random
+    number and is not linked to your name, email or chess.com account.</li>
+</ul>
+
+<h2>What we do not collect</h2>
+<p>No accounts, passwords or email addresses, no browsing history and nothing from other websites. On chess.com game
+pages the extension looks only at the page address, its title and whether the game has ended, to decide when to show
+the Review game button.</p>
+
+<h2>What stays in your browser</h2>
+<p>The extension keeps the installation ID, a cache of engine evaluations, your chosen language and the review panel's
+settings in your browser's extension storage. None of it leaves your device, except the installation ID and the language,
+which travel with a review request as described above.</p>
+
+<h2>Other services involved</h2>
+<ul>
+  <li><strong>Chess.com.</strong> The extension reads the game, player avatars and titles from chess.com's public
+    API, directly from your browser. Chess.com's own privacy policy applies to those requests.</li>
+  <li><strong>Cloudflare.</strong> Our server is reached through Cloudflare Tunnel, so requests to it pass through
+    Cloudflare's network.</li>
+  <li><strong>Google Gemini.</strong> To write the explanations, the server sends the game's moves and their
+    evaluations to the Google Gemini API. We use Gemini's free tier, and Google may use data sent to it to improve
+    its products and models, under Google's terms for the Gemini API.</li>
+</ul>
+
+<h2>IP addresses</h2>
+<p>The server uses your IP address only in memory, for rate limiting: to limit how many installation IDs one address can
+request, and how often a request without an installation ID can be made. It is never written to the database.</p>
+
+<h2>How long data is kept</h2>
+<p>Reviewed games, their evaluations and explanations, installation IDs and daily review counts are kept in our
+database for as long as the service runs. Reviews are a shared cache: when the same game is reviewed again, for example
+by your opponent, the saved explanations are reused instead of asking Gemini again. To have a game deleted, email us a
+link to it.</p>
+
+<h2>How data is used</h2>
+<p>Only to review games and to enforce the daily review limit. We do not sell data, do not share it for advertising,
+and do not use it to determine creditworthiness or for any purpose unrelated to reviewing games.</p>
+
+<h2>Changes and contact</h2>
+<p>If this policy changes, the date at the top of this page changes with it. Questions and deletion requests:
+<a href="mailto:bagmala80@gmail.com">bagmala80@gmail.com</a>.</p>
+</main>
+</body>
+</html>
