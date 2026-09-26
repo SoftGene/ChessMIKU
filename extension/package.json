@@ -1,6 +1,6 @@
 {
   "name": "chess-review-extension",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Browser extension of ChessMIKU: reviews finished chess.com games.",
   "license": "GPL-3.0-or-later",
@@ -9,9 +9,11 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "build": "vite build --mode background && vite build --mode content",
-    "bench": "vite --mode bench"
+    "bench": "vite --mode bench",
+    "icons": "node scripts/icons.mjs"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@types/chrome": "^0.3.0",
     "@types/node": "^24.13.6",
     "ajv": "^8.20.0",

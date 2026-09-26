@@ -25,6 +25,15 @@ The engine only analyses games that are already over. The extension never helps 
 
 ## Install the extension
 
+### From a release
+
+1. Download `chessmiku-<version>.zip` from
+   [Releases](https://github.com/SoftGene/ChessMIKU/releases) and unzip it.
+2. Open `chrome://extensions` and switch on **Developer mode**.
+3. **Load unpacked** and choose the unzipped folder.
+
+### From the source
+
 Needs Node.js 24 and Chrome (or another Chromium browser).
 
 ```bash
@@ -43,8 +52,7 @@ Then in Chrome:
 3. Open a finished game on chess.com (`https://www.chess.com/game/live/...`) and press
    **Review game**.
 
-After a new build, press the reload button on the extension's card. To give the extension to a
-friend, zip `extension/dist`: they unzip it and load the folder the same way.
+After a new build, press the reload button on the extension's card.
 
 ## Run the backend
 
@@ -112,6 +120,25 @@ Every request reaches the API from cloudflared, so the API takes the client addr
 setting the API ignores the header. The registration limit counts by this address.
 
 To update: `git pull`, then the same `up` command. The database lives in the `mssql-data` volume.
+
+## Releasing
+
+By hand, from an up-to-date `main`:
+
+1. Build for the server:
+   `CHESS_REVIEW_API=https://chessmiku.softgene.dev npm --prefix extension run build`.
+   `extension/dist/manifest.json` should show the new version and the server in `host_permissions`.
+2. Zip the contents of `extension/dist`, not the folder: `manifest.json` must be at the root of the
+   archive. Keep the archive outside the repository. In PowerShell:
+   ```powershell
+   Compress-Archive -Path extension\dist\* -DestinationPath $HOME\Desktop\chessmiku-1.0.0.zip
+   ```
+3. Tag the commit and push the tag: `git tag v1.0.0`, `git push origin v1.0.0`.
+4. On GitHub: **Releases** → **Draft a new release** → the tag, a title, notes, the zip attached →
+   **Publish release**. The same zip goes to the Chrome Web Store.
+
+The version comes from `extension/public/manifest.json` and `extension/package.json`; raise both
+before a release.
 
 ## Licence
 

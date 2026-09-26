@@ -40,9 +40,13 @@ describe('the built extension', () => {
       manifest.background.service_worker,
       ...manifest.content_scripts.flatMap((script: { js: string[] }) => script.js),
       ...manifest.web_accessible_resources.flatMap((entry: { resources: string[] }) => entry.resources),
+      ...Object.values(manifest.icons as Record<string, string>),
     ];
 
-    expect(files).toEqual(['background.js', 'content.js', 'panel.html']);
+    expect(files).toEqual([
+      'background.js', 'content.js', 'panel.html',
+      'icons/icon-16.png', 'icons/icon-32.png', 'icons/icon-48.png', 'icons/icon-128.png',
+    ]);
     for (const file of files) {
       expect((await read(file)).length).toBeGreaterThan(0);
     }
