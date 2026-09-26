@@ -131,8 +131,11 @@ By hand, from an up-to-date `main`:
 2. Zip the contents of `extension/dist`, not the folder: `manifest.json` must be at the root of the
    archive. Keep the archive outside the repository. In PowerShell:
    ```powershell
-   Compress-Archive -Path extension\dist\* -DestinationPath $HOME\Desktop\chessmiku-1.0.0.zip
+   Push-Location extension\dist; tar.exe -a -cf $HOME\Desktop\chessmiku-1.0.0.zip *; Pop-Location
    ```
+   Not `Compress-Archive`: in Windows PowerShell 5.1 it writes paths with backslashes
+   (`icons\icon-16.png`), which other systems and the Chrome Web Store read as file names, not
+   folders. Check with `tar.exe -tf <zip>`: the paths must use `/`.
 3. Tag the commit and push the tag: `git tag v1.0.0`, `git push origin v1.0.0`.
 4. On GitHub: **Releases** → **Draft a new release** → the tag, a title, notes, the zip attached →
    **Publish release**. The same zip goes to the Chrome Web Store.
