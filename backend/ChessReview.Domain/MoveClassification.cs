@@ -10,4 +10,6 @@ public enum MoveClassification
     Mistake,
     Miss,
     Blunder,
+    Great,
+    Brilliant,
 }

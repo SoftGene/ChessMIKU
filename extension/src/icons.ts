@@ -74,9 +74,16 @@ const ring = (color: string) => `<circle class="mark-ring" cx="12" cy="12" r="11
 // the position, makes each move's mark new, so that it pops up even where the move before left the same one.
 const corner = (at: string, inner: string) => `<g transform="translate(60 -4) scale(1.75)"><g class="mark-pop" data-at="${at}">${inner}</g></g>`;
 
+// A brilliant move rings a second time, lighter and a little later: a bit more festive than a blunder, not much (Pavel).
+const lateRing = '<circle class="mark-ring mark-ring-late" cx="12" cy="12" r="11" fill="none" stroke="#7fe0d6" stroke-width="2"/>';
+
 /** The icon of a class in the top right corner of a square, for chessground's custom SVG; `at` is the position. */
 export function squareMark(cls: string, at = ''): string | null {
-  return known(cls) ? corner(at, `${NOTABLE.has(cls) ? ring(MOVE_CLASSES[cls].color) : ''}${drawing(cls)}`) : null;
+  if (!known(cls)) {
+    return null;
+  }
+  const rings = NOTABLE.has(cls) ? ring(MOVE_CLASSES[cls].color) + (cls === 'brilliant' ? lateRing : '') : '';
+  return corner(at, `${rings}${drawing(cls)}`);
 }
 
 const hash = '<path data-mark="hash" d="M10.2 7l-1.2 10M15 7l-1.2 10M7.6 10.3h9.2M7.2 13.7h9.2" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>';

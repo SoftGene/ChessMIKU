@@ -99,7 +99,8 @@ public sealed class ExplanationWriter(ChessReviewDbContext db, ILlmClient llm, I
         move.Uci,
         move.BestMoveUci,
         Score(move.EvalBeforeCp, move.MateBefore),
-        Score(move.EvalAfterCp, move.MateAfter));
+        Score(move.EvalAfterCp, move.MateAfter),
+        move.SecondBestCp is null && move.SecondBestMate is null ? null : Score(move.SecondBestCp, move.SecondBestMate));
 
     private static EngineScore Score(int? centipawns, short? mateIn) =>
         centipawns is { } value ? EngineScore.FromCentipawns(value) : EngineScore.FromMateIn(mateIn!.Value);

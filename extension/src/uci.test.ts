@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readLines, readSearch } from './uci';
+import { readEvaluation, readLines, readSearch } from './uci';
 
 // Lines in the form of the UCI protocol as Stockfish prints them.
 describe('readSearch', () => {
@@ -130,5 +130,21 @@ describe('readLines', () => {
 
   it('gives no line for a position without moves', () => {
     expect(readLines(['info depth 0 score mate 0', 'bestmove (none)'])).toEqual([]);
+  });
+});
+
+describe('readEvaluation', () => {
+  it('takes the best move and its score from the first line, and the score of the second', () => {
+    expect(readEvaluation(TWO_LINES)).toEqual({ bestMoveUci: 'e2e4', score: { cp: 31 }, second: { cp: 24 } });
+  });
+
+  it('has no second move when the search had one line', () => {
+    const lines = ['info depth 20 seldepth 2 multipv 1 score cp -410 nodes 40 nps 20000 tbhits 0 time 2 pv e8f7', 'bestmove e8f7'];
+
+    expect(readEvaluation(lines)).toEqual({ bestMoveUci: 'e8f7', score: { cp: -410 }, second: null });
+  });
+
+  it('fails as a single search does when the engine reports no move', () => {
+    expect(() => readEvaluation(['info depth 0 score mate 0', 'bestmove (none)'])).toThrow(/no move/);
   });
 });

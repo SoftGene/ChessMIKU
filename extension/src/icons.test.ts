@@ -9,7 +9,7 @@ const CLASSES = /Classification:\s*\n\s*type: string\s*\n\s*enum: \[([^\]]+)\]/.
 
 describe('icons', () => {
   it('reads the classes of the contract', () => {
-    expect(CLASSES).toEqual(['best', 'excellent', 'good', 'book', 'inaccuracy', 'mistake', 'miss', 'blunder']);
+    expect(CLASSES).toEqual(['best', 'excellent', 'good', 'book', 'inaccuracy', 'mistake', 'miss', 'blunder', 'great', 'brilliant']);
   });
 
   it.each(CLASSES)('has an icon for %s in its own colour', (cls) => {
@@ -75,6 +75,14 @@ describe('icons', () => {
       expect(squareMark(cls)).not.toContain('mark-ring');
     }
     expect(squareMark('mistake')).toContain('<g class="mark-pop"');
+  });
+
+  it('rings a brilliant move twice, in its colour and then lighter, and the other notable ones once', () => {
+    const rings = (cls: string) => [...(squareMark(cls) ?? '').matchAll(/class="(mark-ring[^"]*)"[^>]*stroke="(#[0-9a-f]+)"/g)].map((m) => [m[1], m[2]]);
+
+    expect(rings('brilliant')).toEqual([['mark-ring', '#26b5a8'], ['mark-ring mark-ring-late', '#7fe0d6']]);
+    expect(rings('blunder')).toEqual([['mark-ring', '#d93b3b']]);
+    expect(rings('great')).toEqual([['mark-ring', '#5b8bd6']]);
   });
 
   it('carries the position in the mark, so that the board draws it anew on each move', () => {

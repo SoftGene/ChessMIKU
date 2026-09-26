@@ -20,6 +20,12 @@ public sealed class Game
 
     public DateTime CreatedAt { get; set; }
 
+    /// <summary>
+    /// The version of the classifier the moves were classified with (MoveClassifier.Version): a game classified by an
+    /// older one is classified again at its next request. Games stored before versions were kept have 1.
+    /// </summary>
+    public int ClassifierVersion { get; set; }
+
     public List<Move> Moves { get; } = [];
 
     public List<ExplanationJob> ExplanationJobs { get; } = [];
@@ -33,6 +39,7 @@ internal sealed class GameConfiguration : IEntityTypeConfiguration<Game>
         game.Property(g => g.WhiteUser).HasMaxLength(64);
         game.Property(g => g.BlackUser).HasMaxLength(64);
         game.Property(g => g.CreatedAt).HasDefaultValueSql(SqlConstraints.UtcNow);
+        game.Property(g => g.ClassifierVersion).HasDefaultValue(1);
 
         game.HasIndex(g => g.ExternalGameId).IsUnique();
         game.HasMany(g => g.Moves).WithOne().HasForeignKey(m => m.GameId);

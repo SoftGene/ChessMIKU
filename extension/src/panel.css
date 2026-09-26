@@ -538,6 +538,11 @@ header {
   }
 }
 
+/* A brilliant move's second, lighter ring follows the first (icons.ts). */
+.mark-ring-late {
+  animation-delay: 120ms;
+}
+
 /* The square a blunder, a great or a brilliant move went to fills with its colour and fades in. The piece stands
    over it: the fill is chessground's square, under the pieces (board-shapes.ts, squareFills). */
 .cg-wrap cg-board square.fill-blunder {
@@ -564,6 +569,26 @@ header {
   }
   to {
     opacity: 1;
+  }
+}
+
+/* A brilliant move's square also glows for a moment as it fills: a bit more than a blunder's, not much. */
+.cg-wrap cg-board square.fill-brilliant {
+  animation: square-fill-glow 600ms ease-out both;
+}
+
+@keyframes square-fill-glow {
+  0% {
+    opacity: 0;
+    box-shadow: inset 0 0 0 0 rgba(127, 224, 214, 0);
+  }
+  40% {
+    opacity: 1;
+    box-shadow: inset 0 0 14px 3px rgba(127, 224, 214, 0.9);
+  }
+  100% {
+    opacity: 1;
+    box-shadow: inset 0 0 0 0 rgba(127, 224, 214, 0);
   }
 }
 

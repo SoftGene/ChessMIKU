@@ -5,7 +5,7 @@ namespace ChessReview.Domain;
 /// </summary>
 /// <param name="Before">Position before the move, assuming the engine's best move.</param>
 /// <param name="After">Position after the move actually played.</param>
-public sealed record MoveEvaluation(int Ply, string Uci, string BestMoveUci, EngineScore Before, EngineScore After)
+public sealed record MoveEvaluation(int Ply, string Uci, string BestMoveUci, EngineScore Before, EngineScore After, EngineScore? SecondBest = null)
 {
     /// <summary>
     /// Expected points the move gave away compared with the engine's best move. Never

@@ -1,4 +1,4 @@
-import { readLines, readSearch, type EngineLine, type Evaluation } from './uci';
+import { readEvaluation, readLines, type EngineLine, type Evaluation } from './uci';
 
 /** How long the engine searches one position. */
 export type SearchLimit = { movetime: number } | { depth: number };
@@ -74,7 +74,7 @@ export class UciEngine {
   }
 
   evaluate(fen: string, limit: SearchLimit): Promise<Evaluation> {
-    return this.enqueue(async () => readSearch(await this.ask([`position fen ${fen}`, goCommand(limit)], /^bestmove\b/, this.searchTimeoutMs)));
+    return this.enqueue(async () => readEvaluation(await this.ask([`position fen ${fen}`, goCommand(limit)], /^bestmove\b/, this.searchTimeoutMs)));
   }
 
   /** Sets a UCI option (MultiPV for the player's line) and waits until the engine is ready again. */

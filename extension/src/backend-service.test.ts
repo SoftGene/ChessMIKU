@@ -5,7 +5,7 @@ import type { KeyValueStore } from './install-id';
 
 const INSTALL = '9b1e4c2a-7f3d-4a58-b6e0-2c8d5f1a9e73';
 const ANALYSIS = '3f2b8c1e-5d4a-4e7b-9c61-0a8d2f4b7e19';
-const move = { ply: 1, san: 'e4', uci: 'e2e4', bestMoveUci: 'e2e4', evalBeforeCp: 30, mateBefore: null, evalAfterCp: 30, mateAfter: null };
+const move = { ply: 1, san: 'e4', uci: 'e2e4', bestMoveUci: 'e2e4', evalBeforeCp: 30, mateBefore: null, evalAfterCp: 30, mateAfter: null, secondBestEvalCp: 25, secondBestMate: null };
 const analyse: AnalyseMessage = { type: ANALYSE, externalGameId: 'live/1', pgn: '1. e4 1-0', language: 'cs', moves: [move] };
 
 // A backend that registers installations and accepts analyses, as the contract says.

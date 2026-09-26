@@ -30,6 +30,11 @@ public sealed class Move
 
     public short? MateAfter { get; set; }
 
+    /// <summary>The engine's second best move before this one: at most one of the two; both null when it had no other.</summary>
+    public int? SecondBestCp { get; set; }
+
+    public short? SecondBestMate { get; set; }
+
     public MoveClassification Classification { get; set; }
 }
 
@@ -48,6 +53,7 @@ internal sealed class MoveConfiguration : IEntityTypeConfiguration<Move>
         {
             table.HasCheckConstraint("CK_Moves_EvalBefore", SqlConstraints.ExactlyOneOf("EvalBeforeCp", "MateBefore"));
             table.HasCheckConstraint("CK_Moves_EvalAfter", SqlConstraints.ExactlyOneOf("EvalAfterCp", "MateAfter"));
+            table.HasCheckConstraint("CK_Moves_SecondBest", SqlConstraints.AtMostOneOf("SecondBestCp", "SecondBestMate"));
 
             // A side that is already mated has no move to make.
             table.HasCheckConstraint("CK_Moves_MateBefore", "[MateBefore] <> 0");

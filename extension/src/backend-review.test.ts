@@ -7,7 +7,7 @@ const CLASSES = [{ ply: 1, classification: 'book' }];
 const game: GameToSend = {
   externalGameId: 'live/1',
   pgn: '1. e4 1-0',
-  moves: [{ ply: 1, san: 'e4', uci: 'e2e4', bestMoveUci: 'e2e4', evalBeforeCp: 30, mateBefore: null, evalAfterCp: 30, mateAfter: null }],
+  moves: [{ ply: 1, san: 'e4', uci: 'e2e4', bestMoveUci: 'e2e4', evalBeforeCp: 30, mateBefore: null, evalAfterCp: 30, mateAfter: null, secondBestEvalCp: 25, secondBestMate: null }],
 };
 const accepted = (ready = false): AnalyseAnswer => ({ status: 'accepted', analysisId: ID, classifications: CLASSES, explanationsReady: ready });
 const pending: ExplanationsAnswer = { status: 'explanations', state: 'pending', classifications: CLASSES, explanations: [] };

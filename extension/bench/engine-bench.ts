@@ -4,7 +4,7 @@
 import archive from '../test/fixtures/archive-hikaru-2026-08.json';
 import { analyseGame, type MoveEvaluation } from '../src/analysis';
 import { UciEngine, type EngineProcess, type SearchLimit } from '../src/engine';
-import { EnginePool } from '../src/engine-pool';
+import { EnginePool, poolSize } from '../src/engine-pool';
 import { readGame } from '../src/game';
 
 // The last one is the reference the others are compared with.
@@ -35,6 +35,49 @@ games.addEventListener('change', () => (pgnInput.value = games.value));
 pgnInput.value = games.value;
 document.getElementById('run')!.addEventListener('click', () => void run(pgnInput.value));
 document.getElementById('parallel')!.addEventListener('click', () => void runParallel(pgnInput.value));
+document.getElementById('lines')!.addEventListener('click', () => void runLines());
+
+// One engine line against two (T7.2b: the server needs the second best move), with the panel's pool, on every game
+// of the fixture. One line is run twice: two runs of a timed search differ anyway, and that is the yardstick.
+async function runLines() {
+  const settings = [
+    { name: '1 line, 300 ms', lines: 1, limit: { movetime: 300 } },
+    { name: '1 line, 300 ms, again', lines: 1, limit: { movetime: 300 } },
+    { name: '2 lines, 300 ms', lines: 2, limit: { movetime: 300 } },
+    { name: '2 lines, 400 ms', lines: 2, limit: { movetime: 400 } },
+  ];
+  const size = poolSize(navigator.hardwareConcurrency);
+  const rows: Record<string, unknown>[] = [];
+  for (const game of archive.games) {
+    const reviews: MoveEvaluation[][] = [];
+    for (const setting of settings) {
+      output.textContent = `${JSON.stringify(rows, null, 1)}\nGame ${game.url.split('/').at(-1)}: ${setting.name}…`;
+      const pool = await EnginePool.start(async () => {
+        const engine = await UciEngine.start(startWorker, { searchTimeoutMs: 120_000 });
+        await engine.setOption('MultiPV', setting.lines);
+        return engine;
+      }, size);
+      await pool.newGame();
+      const started = performance.now();
+      const moves = await analyseGame(readGame(game.pgn), (fen) => pool.evaluate(fen, setting.limit));
+      pool.quit();
+      reviews.push(moves);
+      const first = reviews[0];
+      const agree = (judge: (move: MoveEvaluation) => string) => moves.filter((move, ply) => judge(move) === judge(first[ply])).length;
+      rows.push({
+        game: game.url.split('/').at(-1),
+        setting: setting.name,
+        engines: size,
+        totalS: round((performance.now() - started) / 1000, 1),
+        sameBestMove: `${moves.filter((move, ply) => move.bestMoveUci === first[ply].bestMoveUci).length} of ${moves.length}`,
+        sameClass: `${agree(roughClass)} of ${moves.length}`,
+        sameVerdict: `${agree(verdict)} of ${moves.length}`,
+        withSecond: moves.filter((move) => move.secondBestEvalCp !== null || move.secondBestMate !== null).length,
+      });
+    }
+  }
+  output.textContent = JSON.stringify({ cores: navigator.hardwareConcurrency, rows }, null, 1);
+}
 
 // A pool of engines, as the panel runs it (src/panel.ts): how the time falls with their number.
 async function runParallel(pgn: string) {

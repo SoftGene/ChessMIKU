@@ -12,6 +12,8 @@ export interface MoveEvaluation {
   mateBefore: number | null;
   evalAfterCp: number | null;
   mateAfter: number | null;
+  secondBestEvalCp: number | null;
+  secondBestMate: number | null;
 }
 
 /** Evaluates one position given in FEN. */
@@ -21,6 +23,8 @@ export type Evaluate = (fen: string) => Promise<Evaluation>;
 export interface PositionEvaluation {
   score: Score;
   bestMoveUci?: string;
+  /** The score of the second best move from here: null when there was none, absent when the search had one line. */
+  second?: Score | null;
 }
 
 /** Told as each position is evaluated, in whatever order: its index (0 is the start), its evaluation, how many are done. */
@@ -56,6 +60,7 @@ export function movesFrom(game: Game, positions: readonly PositionEvaluation[]):
   return game.plies.map((ply, i) => {
     const before = positions[i].score;
     const after = flip(positions[i + 1].score);
+    const second = positions[i].second;
     return {
       ply: ply.ply,
       san: ply.san,
@@ -66,6 +71,9 @@ export function movesFrom(game: Game, positions: readonly PositionEvaluation[]):
       mateBefore: 'mate' in before ? before.mate : null,
       evalAfterCp: 'cp' in after ? after.cp : null,
       mateAfter: 'mate' in after ? after.mate : null,
+      // The second best move of the position before, from the same side as `before`; none, or not searched: null.
+      secondBestEvalCp: second && 'cp' in second ? second.cp : null,
+      secondBestMate: second && 'mate' in second ? second.mate : null,
     };
   });
 }

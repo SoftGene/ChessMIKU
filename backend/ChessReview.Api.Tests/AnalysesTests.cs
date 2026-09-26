@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
+using ChessReview.Domain;
 using ChessReview.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -113,6 +114,7 @@ public class AnalysesTests(ApiFactory api)
         ["evaluation with neither centipawns nor mate"] = (r => r["moves"]![0]!["evalBeforeCp"] = null, "moves[0].evalBeforeCp"),
         ["evaluation with both centipawns and mate"] = (r => r["moves"]![0]!["mateAfter"] = 3, "moves[0].evalAfterCp"),
         ["mate in 0 before the move"] = (r => r["moves"]![11]!["mateBefore"] = 0, "moves[11].mateBefore"),
+        ["second best move with both centipawns and mate"] = (r => r["moves"]![0]!["secondBestMate"] = 3, "moves[0].secondBestEvalCp"),
         ["centipawns out of range"] = (r => r["moves"]![0]!["evalBeforeCp"] = 40000, "moves[0].evalBeforeCp"),
         ["moves out of order"] = (r => (r["moves"]![0]!["ply"], r["moves"]![1]!["ply"]) = (2, 1), "moves"),
         ["moves that do not match the PGN"] = (r => r["moves"]!.AsArray().RemoveAt(12), "moves"),
@@ -141,6 +143,53 @@ public class AnalysesTests(ApiFactory api)
         Assert.True(
             errors.Any(error => error.Key == field || error.Key.StartsWith(field + ".", StringComparison.Ordinal)),
             $"No error for '{field}' in {errors.ToJsonString()}");
+    }
+
+    [Fact]
+    public async Task The_second_best_move_of_each_position_is_stored()
+    {
+        var request = NewGameRequest();
+
+        await api.PostAnalysisAsync(request);
+
+        await using var scope = api.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ChessReviewDbContext>();
+        var moves = await db.Games.AsNoTracking()
+            .Where(g => g.ExternalGameId == request["externalGameId"]!.GetValue<string>())
+            .SelectMany(g => g.Moves)
+            .OrderBy(m => m.Ply)
+            .Select(m => new { m.SecondBestCp, m.SecondBestMate })
+            .ToListAsync(Ct);
+        Assert.Equal((400, (short?)null), (moves[10].SecondBestCp, moves[10].SecondBestMate));
+        Assert.Equal(((int?)null, (short?)null), (moves[11].SecondBestCp, moves[11].SecondBestMate));
+        Assert.Equal(((int?)null, (short?)2), (moves[12].SecondBestCp, moves[12].SecondBestMate));
+    }
+
+    [Fact]
+    public async Task A_game_classified_by_an_older_classifier_is_classified_again()
+    {
+        // Stored before great and brilliant: every move best, no second best, version 1.
+        var request = NewGameRequest();
+        var first = await api.PostAnalysisAsync(request);
+        await using (var scope = api.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ChessReviewDbContext>();
+            var game = await db.Games.Include(g => g.Moves).SingleAsync(g => g.ExternalGameId == request["externalGameId"]!.GetValue<string>(), Ct);
+            game.ClassifierVersion = 1;
+            game.Moves.ForEach(move => (move.Classification, move.SecondBestCp, move.SecondBestMate) = (MoveClassification.Best, null, null));
+            await db.SaveChangesAsync(Ct);
+        }
+
+        var again = await api.PostAnalysisAsync(request);
+
+        Assert.Equal(first.AnalysisId, again.AnalysisId);
+        Assert.True(JsonNode.DeepEquals(Contract.Example(Contract.AnalysisAccepted)["classifications"], again.Body["classifications"]));
+        await using (var scope = api.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ChessReviewDbContext>();
+            var game = await db.Games.AsNoTracking().Include(g => g.Moves).SingleAsync(g => g.ExternalGameId == request["externalGameId"]!.GetValue<string>(), Ct);
+            Assert.Equal((3, 400), (game.ClassifierVersion, game.Moves.Single(m => m.Ply == 11).SecondBestCp));
+        }
     }
 
     [Fact]

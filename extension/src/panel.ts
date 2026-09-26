@@ -91,7 +91,7 @@ const backend = createBackendReview(
 // The player's line has an engine of its own, one, with two lines: the review's engines are gone by then (and a
 // game from the store never starts them). 0.5 s a position (design of the free play, section 5).
 const LINE_LIMIT: SearchLimit = { movetime: 500 };
-const lineEngine = createLineEngine(startLineEngine, LINE_LIMIT, (fen) => {
+const lineEngine = createLineEngine(startTwoLineEngine, LINE_LIMIT, (fen) => {
   if (game && place.line && positionAt(place, game).fen === fen) {
     render(false);
   }
@@ -155,9 +155,9 @@ parts.graph.addEventListener('click', (event) => {
 
 if (page) {
   const externalGameId = `${page.type}/${page.id}`;
-  // Positions are searched by several engines at once: 4 took 6.6 s where 1 took 25.8 s (bench, 23.09).
-  const startOne = () => UciEngine.start(startWorker, { startTimeoutMs: START_TIMEOUT_MS });
-  const startEngine = () => EnginePool.start(startOne, poolSize(navigator.hardwareConcurrency));
+  // Positions are searched by several engines at once: 4 took 6.6 s where 1 took 25.8 s (bench, 23.09). Each with
+  // two lines: the server needs the second best move to tell a great one (T7.2b).
+  const startEngine = () => EnginePool.start(startTwoLineEngine, poolSize(navigator.hardwareConcurrency));
   const deps = { lookUp, startEngine, limit: SEARCH_LIMIT, cache: createEvalCache(cacheStore) };
   void runReview(page, deps, (state) => onState(state, externalGameId));
 } else {
@@ -428,7 +428,8 @@ function stopReplay() {
   replay = null;
 }
 
-async function startLineEngine(): Promise<UciEngine> {
+// An engine with two lines (MultiPV 2): the review and the player's line both use it.
+async function startTwoLineEngine(): Promise<UciEngine> {
   const engine = await UciEngine.start(startWorker, { startTimeoutMs: START_TIMEOUT_MS });
   await engine.setOption('MultiPV', 2);
   return engine;

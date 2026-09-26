@@ -3,7 +3,8 @@
 // of the bench server. Only chrome.* is replaced. Run: docker compose up, npm run bench, then open
 // /bench/panel-harness.html?type=live&id=173765478164&players=Hikaru%2Cpoohineedyou
 // &engine=missing: the engine cannot start; &classes=sample: sample icons; &backend=off: the server is away;
-// &fresh=1: forget the saved evaluations (the installation id stays); &pgn=promotion: a game to promote a pawn in.
+// &fresh=1: forget the saved evaluations (the installation id stays); &pgn=promotion: a game to promote a pawn in;
+// &pgn=legal: Légal's mate, with a sacrifice (T7.2b).
 import archive from '../test/fixtures/archive-hikaru-2026-08.json';
 import { fetchJson } from '../src/archive';
 import { isAnalyseMessage, isExplanationsMessage } from '../src/backend-messages';
@@ -13,8 +14,13 @@ import { fetchPlayerInfo, isPlayerInfoMessage } from '../src/player-info';
 
 const query = new URLSearchParams(location.search);
 // &pgn=promotion: a short game whose pawn on b7 can promote at once (no players: the names ask no API).
-const PROMOTION = { pgn: '1. e4 d5 2. exd5 c6 3. dxc6 Nf6 4. cxb7 Nbd7 *' };
-const game = query.get('pgn') === 'promotion' ? PROMOTION : archive.games.find((g) => g.url.endsWith(`/${query.get('id')}`));
+// &pgn=legal: Légal's mate, the contract example: 5. Nxe5 gives the queen away. Names with a space ask no API
+// either, and the server needs both players and a result.
+const PGNS: Record<string, { pgn: string }> = {
+  promotion: { pgn: '1. e4 d5 2. exd5 c6 3. dxc6 Nf6 4. cxb7 Nbd7 *' },
+  legal: { pgn: '[White "White player"]\n[Black "Black player"]\n[Result "1-0"]\n\n1. e4 e5 2. Nf3 d6 3. Bc4 Bg4 4. Nc3 g6 5. Nxe5 Bxd1 6. Bxf7+ Ke7 7. Nd5# 1-0' },
+};
+const game = PGNS[query.get('pgn') ?? ''] ?? archive.games.find((g) => g.url.endsWith(`/${query.get('id')}`));
 
 // chrome.storage.local, kept in this page's localStorage: a reload finds the saved evaluations and the installation.
 const KEY = 'harness.storage';
