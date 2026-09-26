@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChessMIKU</title>
+<style>
+  :root { color-scheme: light dark; --text: #1d1d1f; --muted: #5f6368; --bg: #fdfdfb; --rule: #e3e3e0; }
+  @media (prefers-color-scheme: dark) {
+    :root { --text: #e8e8e6; --muted: #a0a4a8; --bg: #161617; --rule: #333336; }
+  }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 40rem; margin: 0 auto; padding: 2.5rem 1rem 4rem; }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 1rem; }
+  ul { padding-left: 1.25rem; }
+  li { margin: .3rem 0; }
+  a { color: inherit; }
+  .note { color: var(--muted); margin-top: 2.2rem; padding-top: 1.2rem; border-top: 1px solid var(--rule); }
+</style>
+</head>
+<body>
+<main>
+<h1>ChessMIKU</h1>
+<p>A free browser extension that reviews your finished games from chess.com. The Stockfish engine evaluates the game
+in your browser, and the worst moves get plain-language explanations. No hints during a game, ever.</p>
+<ul>
+  <li><a href="https://github.com/SoftGene/ChessMIKU/releases">Download the latest release</a></li>
+  <li><a href="https://github.com/SoftGene/ChessMIKU">Source code on GitHub</a></li>
+  <li><a href="privacy.html">Privacy policy</a></li>
+</ul>
+<p class="note">ChessMIKU is an independent project and is not affiliated with Chess.com.</p>
+</main>
+</body>
+</html>
