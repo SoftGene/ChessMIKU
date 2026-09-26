@@ -15,9 +15,13 @@ describe('privacy policy', () => {
     ['traffic passes through Cloudflare', 'Cloudflare'],
     ['the IP address is not stored', 'never written to the database'],
     ['no selling of data', 'We do not sell'],
-    ['the contact address', 'bagmala80@gmail.com'],
+    ['the contact address', 'support@softgene.dev'],
   ])('discloses %s', (_, phrase) => {
     expect(text).toContain(phrase);
+  });
+
+  it('keeps the personal mailbox off the page', () => {
+    expect(html).not.toContain('gmail.com');
   });
 
   it('runs no scripts', () => {
