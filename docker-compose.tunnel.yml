@@ -1,0 +1,38 @@
+# Chess Review on the home server: the API over HTTPS through Cloudflare Tunnel.
+#
+#   # in .env: CLOUDFLARE_TUNNEL_TOKEN from Cloudflare Zero Trust -> Networks -> Tunnels
+#   docker compose -f docker-compose.yml -f docker-compose.tunnel.yml up -d --wait --build
+#
+# The tunnel's public hostname points at http://api:8080.
+
+services:
+  api:
+    environment:
+      # The one address whose CF-Connecting-IP header the API believes: cloudflared below.
+      ForwardedHeaders__KnownProxies__0: 172.31.250.2
+    networks:
+      default:
+      tunnel:
+        ipv4_address: 172.31.250.3
+    # Only through the tunnel: the server does not publish port 8080.
+    ports: !reset []
+
+  cloudflared:
+    image: cloudflare/cloudflared:2026.9.3
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?set CLOUDFLARE_TUNNEL_TOKEN in .env}
+    networks:
+      tunnel:
+        ipv4_address: 172.31.250.2
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  # Fixed addresses, so that the API can trust cloudflared and nobody else.
+  tunnel:
+    ipam:
+      config:
+        - subnet: 172.31.250.0/29

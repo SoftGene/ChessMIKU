@@ -33,6 +33,7 @@ builder.Services.AddScoped<AnalysisService>();
 builder.Services.AddInstallIdAuthentication();
 builder.Services.AddOptions<QuotaOptions>().BindConfiguration(QuotaOptions.Section).ValidateDataAnnotations().ValidateOnStart();
 builder.Services.AddScoped<DailyQuota>();
+builder.Services.AddCloudflareTunnel();
 builder.Services.AddChessReviewRateLimiting();
 builder.Services.AddExplanationWorker();
 
@@ -46,6 +47,9 @@ if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
     await using var scope = app.Services.CreateAsyncScope();
     await scope.ServiceProvider.GetRequiredService<ChessReviewDbContext>().Database.MigrateAsync();
 }
+
+// The client address comes first: the registration limit counts by it.
+app.UseForwardedHeaders();
 
 // The rate limiter needs the installation, and refuses requests before authorization answers 401.
 app.UseAuthentication();
