@@ -1,6 +1,6 @@
 [
-  { "file": "1-moves.png", "caption": "Every move classified, from brilliant to blunder" },
-  { "file": "2-explanation.png", "caption": "Plain-language explanations of the worst moves" },
-  { "file": "3-graph.png", "caption": "Evaluation graph and accuracy for both players" },
-  { "file": "4-board.png", "caption": "Try your own moves on the review board" }
+  { "file": "1-moves.png", "caption": "Every move classified, from brilliant to blunder", "crop": { "x": 484, "y": 9, "width": 1586, "height": 1250 } },
+  { "file": "2-explanation.png", "caption": "Plain-language explanations of the worst moves", "crop": { "x": 484, "y": 9, "width": 1586, "height": 1250 } },
+  { "file": "3-graph.png", "caption": "The engine's best move, right on the board", "crop": { "x": 484, "y": 9, "width": 1586, "height": 1250 } },
+  { "file": "4-board.png", "caption": "Try your own moves on the review board", "crop": { "x": 484, "y": 10, "width": 1586, "height": 1250 } }
 ]

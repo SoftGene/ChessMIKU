@@ -23,6 +23,6 @@ if (missing.length > 0) {
 
 mkdirSync(out, { recursive: true });
 shots.forEach((shot, i) => {
-  render(screenshotSvg(readFileSync(resolve(root, 'store/shots', shot.file)), shot.caption), `screenshot-${i + 1}.png`);
+  render(screenshotSvg(readFileSync(resolve(root, 'store/shots', shot.file)), shot.caption, shot.crop), `screenshot-${i + 1}.png`);
 });
 render(promoSvg(readFileSync(resolve(root, 'icons/pawn.svg'), 'utf8')), 'promo-440x280.png');

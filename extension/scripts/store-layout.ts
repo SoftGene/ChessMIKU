@@ -41,14 +41,20 @@ const escapeXml = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&
 
 const base64 = (bytes: Uint8Array) => Buffer.from(bytes).toString('base64');
 
-/** A 1280×800 store screenshot: the caption on top, the shot under it in a thin frame. */
-export function screenshotSvg(png: Uint8Array, caption: string): string {
+/**
+ * A 1280×800 store screenshot: the caption on top, the shot under it in a thin frame. The crop, in the shot's own
+ * pixels, keeps only the review window and leaves the site around it out.
+ */
+export function screenshotSvg(png: Uint8Array, caption: string, crop?: Box): string {
   const size = pngSize(png);
-  const { x, y, width, height } = fit(size.width, size.height, SHOT_BOX);
+  const part = crop ?? { x: 0, y: 0, ...size };
+  const { x, y, width, height } = fit(part.width, part.height, SHOT_BOX);
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${SHOT.width}" height="${SHOT.height}">
   <rect width="100%" height="100%" fill="${BACKGROUND}"/>
   <text x="${SHOT.width / 2}" y="98" fill="${INK}" font-family="${FONT}" font-size="46" font-weight="600" text-anchor="middle">${escapeXml(caption)}</text>
-  <image x="${x}" y="${y}" width="${width}" height="${height}" xlink:href="data:image/png;base64,${base64(png)}"/>
+  <svg x="${x}" y="${y}" width="${width}" height="${height}" viewBox="${part.x} ${part.y} ${part.width} ${part.height}">
+    <image width="${size.width}" height="${size.height}" xlink:href="data:image/png;base64,${base64(png)}"/>
+  </svg>
   <rect x="${x - 1}" y="${y - 1}" width="${width + 2}" height="${height + 2}" fill="none" stroke="${INK}" stroke-width="2" rx="3"/>
 </svg>`;
 }

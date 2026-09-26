@@ -48,6 +48,11 @@ describe('screenshotSvg', () => {
     expect(SHOT_BOX).toEqual({ x: 48, y: 150, width: 1184, height: 608 });
   });
 
+  it('fits a cropped shot by the size of the crop and shows only the cropped part', () => {
+    const svg = screenshotSvg(png(1920, 960), 'x', { x: 480, y: 0, width: 960, height: 960 });
+    expect(svg).toContain('x="336" y="150" width="608" height="608" viewBox="480 0 960 960"');
+  });
+
   it('escapes the caption', () => {
     const svg = screenshotSvg(png(10, 10), 'Brilliant & best <moves>');
     expect(svg).toContain('Brilliant &amp; best &lt;moves&gt;');
