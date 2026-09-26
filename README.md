@@ -143,6 +143,12 @@ By hand, from an up-to-date `main`:
 The version comes from `extension/public/manifest.json` and `extension/package.json`; raise both
 before a release.
 
+## Privacy
+
+Only a finished game you choose to review leaves your browser: its PGN, the engine evaluations and an anonymous
+installation ID go to the server, and the moves go on to Google Gemini for the explanations. The full policy:
+https://softgene.github.io/ChessMIKU/privacy.html (source in `site/`, published by the `pages` workflow).
+
 ## Licence
 
 Stockfish is GPL v3, so the extension that ships it is GPL v3 as well.
