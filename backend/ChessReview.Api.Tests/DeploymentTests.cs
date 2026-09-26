@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using ChessReview.Testing;
+using YamlDotNet.RepresentationModel;
 
 namespace ChessReview.Api.Tests;
 
@@ -29,6 +30,35 @@ public partial class DeploymentTests
     public void Compose_takes_the_Gemini_key_from_the_environment()
     {
         Assert.Contains("Gemini__ApiKey: ${GEMINI_API_KEY", Compose, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Behind_the_tunnel_the_API_trusts_cloudflared_and_nobody_else()
+    {
+        var services = (YamlMappingNode)TunnelCompose()["services"];
+        var cloudflared = (YamlMappingNode)services["cloudflared"];
+        var api = (YamlMappingNode)services["api"];
+
+        var trusted = api["environment"]["ForwardedHeaders__KnownProxies__0"].ToString();
+
+        Assert.Equal(cloudflared["networks"]["tunnel"]["ipv4_address"].ToString(), trusted);
+        Assert.Equal("172.31.250.2", trusted);
+        Assert.DoesNotContain(new YamlScalarNode("ForwardedHeaders__KnownProxies__1"), ((YamlMappingNode)api["environment"]).Children.Keys);
+    }
+
+    [Fact]
+    public void The_tunnel_takes_its_token_from_the_environment()
+    {
+        var cloudflared = (YamlMappingNode)((YamlMappingNode)TunnelCompose()["services"])["cloudflared"];
+
+        Assert.StartsWith("${CLOUDFLARE_TUNNEL_TOKEN:?", cloudflared["environment"]["TUNNEL_TOKEN"].ToString(), StringComparison.Ordinal);
+    }
+
+    private static YamlMappingNode TunnelCompose()
+    {
+        var yaml = new YamlStream();
+        yaml.Load(new StringReader(File.ReadAllText(Path.Combine(RepositoryPaths.Root, "docker-compose.tunnel.yml"))));
+        return (YamlMappingNode)yaml.Documents[0].RootNode;
     }
 
     [Fact]

@@ -1,8 +1,10 @@
 import type { MoveEvaluation } from './analysis';
 import type { Accepted, Explanation, Explanations, Failure, Language, MoveClassification } from './backend-messages';
 
-/** The backend (contracts/api.yaml, servers). The address behind Cloudflare Tunnel comes with T7.4. */
-export const API_BASE = 'http://127.0.0.1:8080';
+declare const __CHESS_REVIEW_API__: string;
+
+/** The backend (contracts/api.yaml, servers): the one the build was made for, see api-address.ts. */
+export const API_BASE = __CHESS_REVIEW_API__;
 
 // A server that takes the connection and never answers must not hold the review forever.
 const TIMEOUT_MS = 15_000;
