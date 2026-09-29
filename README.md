@@ -25,6 +25,11 @@ The engine only analyses games that are already over. The extension never helps 
 
 ## Install the extension
 
+### From the Chrome Web Store
+
+[ChessMIKU in the Chrome Web Store](https://chromewebstore.google.com/detail/chessmiku/pddigclbigiocdokpmcimplibkcaadkm)
+→ **Add to Chrome**. It updates itself.
+
 ### From a release
 
 1. Download `chessmiku-<version>.zip` from
