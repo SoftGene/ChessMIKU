@@ -7,6 +7,7 @@ const html = readFileSync(join(import.meta.dirname, '../../site/index.html'), 'u
 
 describe('site home page', () => {
   it.each([
+    ['the Chrome Web Store', 'href="https://chromewebstore.google.com/detail/chessmiku/pddigclbigiocdokpmcimplibkcaadkm"'],
     ['the privacy policy', 'href="privacy.html"'],
     ['the source code', 'href="https://github.com/SoftGene/ChessMIKU"'],
     ['the releases', 'href="https://github.com/SoftGene/ChessMIKU/releases"'],
